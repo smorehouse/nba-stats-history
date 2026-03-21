@@ -1,11 +1,11 @@
 # nba-stats-history
 
 ## GitHub / SSH
-When setting up git remotes, use `git@github-personal` instead of `git@github.com` to ensure the correct SSH key (`~/.ssh/id_ed25519_claude`) is used for this personal GitHub account.
+When setting up git remotes, use `git@github-claude` instead of `git@github.com` to ensure the correct SSH key (`~/.ssh/id_ed25519_claude`) is used for this personal GitHub account.
 
 Example:
 ```
-git remote add origin git@github-personal:smorehouse/nba-stats-history.git
+git remote add origin git@github-claude:smorehouse/nba-stats-history.git
 ```
 
 ## Project Overview
