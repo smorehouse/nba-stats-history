@@ -2,8 +2,11 @@
 """
 Fetch all NBA player game logs for the 2025-26 season and load into SQLite.
 
-Usage:
+Local usage:
     loader/.venv/bin/python loader/load_gamelog.py
+
+Lambda usage:
+    Triggered by EventBridge. Writes SQLite to /tmp, uploads to S3.
 """
 
 import sqlite3
@@ -14,11 +17,17 @@ from pathlib import Path
 from nba_api.stats.endpoints import playergamelog, commonallplayers
 from nba_api.stats.library.parameters import SeasonAll
 
-DB_PATH = Path(__file__).resolve().parent.parent / "db" / "nba.sqlite"
 SEASON = "2025-26"
 
 # nba.com rate-limits aggressively; be polite
 REQUEST_DELAY = 0.6  # seconds between API calls
+
+
+def get_db_path() -> Path:
+    """Return the database path based on environment."""
+    if os.environ.get("LAMBDA_TASK_ROOT"):
+        return Path("/tmp/nba.sqlite")
+    return Path(__file__).resolve().parent.parent / "db" / "nba.sqlite"
 
 
 def create_schema(conn: sqlite3.Connection):
@@ -142,9 +151,15 @@ def insert_game_logs(conn: sqlite3.Connection, rows: list[dict]):
     """, rows)
 
 
-def main():
-    os.makedirs(DB_PATH.parent, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+def load_all_data(db_path: Path) -> str:
+    """Fetch all game logs and write to SQLite. Returns summary message."""
+    os.makedirs(db_path.parent, exist_ok=True)
+
+    # Start fresh each run
+    if db_path.exists():
+        db_path.unlink()
+
+    conn = sqlite3.connect(str(db_path))
     create_schema(conn)
 
     players = get_active_players()
@@ -156,6 +171,7 @@ def main():
     )
     conn.commit()
 
+    total_games = 0
     total = len(players)
     for i, p in enumerate(players, 1):
         print(f"[{i}/{total}] {p['player_name']}...", end=" ", flush=True)
@@ -164,6 +180,7 @@ def main():
             if rows:
                 insert_game_logs(conn, rows)
                 conn.commit()
+                total_games += len(rows)
                 print(f"{len(rows)} games")
             else:
                 print("no games")
@@ -172,8 +189,28 @@ def main():
             continue
 
     conn.close()
-    print(f"\nDone. Database saved to {DB_PATH}")
+    return f"Done. {total} players, {total_games} games. Saved to {db_path}"
+
+
+def upload_to_s3(db_path: Path):
+    """Upload the SQLite database to S3."""
+    import boto3
+    bucket = os.environ["DB_S3_BUCKET"]
+    key = os.environ.get("DB_S3_KEY", "nba.sqlite")
+    print(f"Uploading to s3://{bucket}/{key}...")
+    boto3.client("s3").upload_file(str(db_path), bucket, key)
+    print("Upload complete.")
+
+
+def handler(event, context):
+    """Lambda entry point."""
+    db_path = get_db_path()
+    result = load_all_data(db_path)
+    upload_to_s3(db_path)
+    return {"statusCode": 200, "body": result}
 
 
 if __name__ == "__main__":
-    main()
+    db_path = get_db_path()
+    result = load_all_data(db_path)
+    print(f"\n{result}")

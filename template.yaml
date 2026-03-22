@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: NBA Stats History - Player Z-Score Rankings
+
+Parameters:
+  AppPassword:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /nba-stats/app-password
+    NoEcho: true
+  WebImageUri:
+    Type: String
+    Description: ECR image URI for the web Lambda
+  LoaderImageUri:
+    Type: String
+    Description: ECR image URI for the loader Lambda
+
+Globals:
+  Function:
+    Timeout: 28
+
+Resources:
+  DatabaseBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub nba-stats-db-${AWS::StackName}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  WebFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-web
+      PackageType: Image
+      ImageUri: !Ref WebImageUri
+      Environment:
+        Variables:
+          DB_S3_BUCKET: !Ref DatabaseBucket
+          DB_S3_KEY: nba.sqlite
+          APP_PASSWORD: !Ref AppPassword
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref DatabaseBucket
+      Events:
+        Root:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: ANY
+        Proxy:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+  LoaderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-loader
+      PackageType: Image
+      ImageUri: !Ref LoaderImageUri
+      Timeout: 900
+      MemorySize: 512
+      Environment:
+        Variables:
+          DB_S3_BUCKET: !Ref DatabaseBucket
+          DB_S3_KEY: nba.sqlite
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DatabaseBucket
+      Events:
+        DailyLoad:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 9 * * ? *)
+            Description: Load NBA stats daily at 3am CT (9am UTC)
+            Enabled: true
+
+Outputs:
+  ApiUrl:
+    Description: URL of the web app
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  DatabaseBucketName:
+    Description: S3 bucket for the SQLite database
+    Value: !Ref DatabaseBucket
