@@ -63,6 +63,6 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --resolve-image-repos \
+            --image-repository 100055760442.dkr.ecr.us-east-2.amazonaws.com/nba-stats-web \
             --resolve-s3 \
             --region ${{ env.AWS_REGION }}
