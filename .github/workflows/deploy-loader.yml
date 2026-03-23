@@ -6,6 +6,7 @@ on:
     paths:
       - 'loader/**'
       - 'Dockerfile.loader'
+      - '.github/workflows/deploy-loader.yml'
 
 env:
   AWS_REGION: us-east-2
