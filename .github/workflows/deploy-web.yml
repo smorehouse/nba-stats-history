@@ -6,7 +6,7 @@ on:
     paths:
       - 'public/**'
       - 'Dockerfile'
-      - 'template.yaml'
+      - 'cloudformation/template.yaml'
       - '.github/workflows/deploy-web.yml'
 
 env:
@@ -56,7 +56,7 @@ jobs:
       - name: SAM deploy
         run: |
           sam deploy \
-            --template-file template.yaml \
+            --template-file cloudformation/template.yaml \
             --stack-name ${{ env.STACK_NAME }} \
             --parameter-overrides \
               WebImageUri=${{ steps.build-image.outputs.image_uri }} \

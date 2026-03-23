@@ -23,12 +23,13 @@ NBA player stats history viewer. View any player's game-by-game performance over
 
 ## Project Structure
 ```
+cloudformation/  — IAM and SAM CloudFormation templates
 db/              — SQLite database (gitignored)
 loader/          — Python data loader scripts + venv
 public/          — PHP web app (document root)
-.github/         — GitHub Actions deploy workflow
+.github/         — GitHub Actions deploy workflows
 Dockerfile       — PHP Lambda container image (based on bref/php-84-fpm)
-template.yaml    — SAM template (Lambda, API Gateway, S3)
+Dockerfile.loader — Python loader container image
 ```
 
 ## Commands
