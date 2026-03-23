@@ -32,13 +32,10 @@ Resources:
         Variables:
           DB_S3_BUCKET: !Ref DatabaseBucket
           DB_S3_KEY: nba.sqlite
-          APP_PASSWORD_SSM: /nba-stats/app-password
           AWS_LWA_ASYNC_INIT: true
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref DatabaseBucket
-        - SSMParameterReadPolicy:
-            ParameterName: nba-stats/app-password
       Events:
         Root:
           Type: HttpApi

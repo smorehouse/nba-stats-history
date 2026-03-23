@@ -146,13 +146,6 @@ Resources:
                   - events:RemoveTargets
                 Resource: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/nba-stats-*
 
-              - Sid: SSM
-                Effect: Allow
-                Action:
-                  - ssm:GetParameter
-                  - ssm:GetParameters
-                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/nba-stats/*
-
 Outputs:
   RoleArn:
     Description: ARN of the GitHub Actions role (set as AWS_ROLE_ARN repo secret)
