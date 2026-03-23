@@ -1,7 +1,12 @@
-FROM bref/php-84-fpm:2
+FROM php:8.4-apache
 
-# Copy the application code
-COPY public/ /var/task/public/
+# AWS Lambda Web Adapter — proxies Lambda events to Apache
+COPY --from=public.ecr.aws/awsguru/aws-lambda-web-adapter:0.8.4 \
+  /lambda-adapter /opt/extensions/lambda-adapter
 
-# Bref FPM handler serves from /var/task
-CMD ["public/index.php"]
+# AWS CLI for S3 database download and SSM parameter fetch
+RUN apt-get update && apt-get install -y awscli && rm -rf /var/lib/apt/lists/*
+
+COPY public/ /var/www/html/
+
+ENV PORT=80
