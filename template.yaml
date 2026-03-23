@@ -3,16 +3,9 @@ Transform: AWS::Serverless-2016-10-31
 Description: NBA Stats History - Player Z-Score Rankings
 
 Parameters:
-  AppPassword:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /nba-stats/app-password
-    NoEcho: true
   WebImageUri:
     Type: String
     Description: ECR image URI for the web Lambda
-  LoaderImageUri:
-    Type: String
-    Description: ECR image URI for the loader Lambda
 
 Globals:
   Function:
@@ -39,10 +32,12 @@ Resources:
         Variables:
           DB_S3_BUCKET: !Ref DatabaseBucket
           DB_S3_KEY: nba.sqlite
-          APP_PASSWORD: !Ref AppPassword
+          APP_PASSWORD_SSM: /nba-stats/app-password
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref DatabaseBucket
+        - SSMParameterReadPolicy:
+            ParameterName: nba-stats/app-password
       Events:
         Root:
           Type: HttpApi
@@ -54,29 +49,6 @@ Resources:
           Properties:
             Path: /{proxy+}
             Method: ANY
-
-  LoaderFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub ${AWS::StackName}-loader
-      PackageType: Image
-      ImageUri: !Ref LoaderImageUri
-      Timeout: 900
-      MemorySize: 512
-      Environment:
-        Variables:
-          DB_S3_BUCKET: !Ref DatabaseBucket
-          DB_S3_KEY: nba.sqlite
-      Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref DatabaseBucket
-      Events:
-        DailyLoad:
-          Type: Schedule
-          Properties:
-            Schedule: cron(0 9 * * ? *)
-            Description: Load NBA stats daily at 3am CT (9am UTC)
-            Enabled: true
 
 Outputs:
   ApiUrl:

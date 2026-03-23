@@ -6,12 +6,10 @@ on:
     paths:
       - 'loader/**'
       - 'Dockerfile.loader'
-      - 'template.yaml'
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: us-east-2
   ECR_REPOSITORY: nba-stats-loader
-  STACK_NAME: nba-stats
 
 permissions:
   id-token: write
@@ -49,26 +47,3 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Get current web image URI
-        id: web-image
-        run: |
-          URI=$(aws lambda get-function-configuration \
-            --function-name ${{ env.STACK_NAME }}-web \
-            --query 'Code.ImageUri' --output text 2>/dev/null || echo "")
-          echo "image_uri=$URI" >> $GITHUB_OUTPUT
-
-      - name: Setup SAM
-        uses: aws-actions/setup-sam@v2
-
-      - name: SAM deploy
-        run: |
-          sam deploy \
-            --template-file template.yaml \
-            --stack-name ${{ env.STACK_NAME }} \
-            --parameter-overrides \
-              WebImageUri=${{ steps.web-image.outputs.image_uri }} \
-              LoaderImageUri=${{ steps.build-image.outputs.image_uri }} \
-            --capabilities CAPABILITY_IAM \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --region ${{ env.AWS_REGION }}

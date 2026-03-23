@@ -5,7 +5,15 @@
  *
  * Set APP_PASSWORD env var to enable. If not set, auth is skipped (local dev).
  */
-$app_password = getenv('APP_PASSWORD');
+// On Lambda, fetch password from SSM. Locally, use APP_PASSWORD env var.
+$ssm_name = getenv('APP_PASSWORD_SSM');
+if ($ssm_name) {
+    $cmd = sprintf('aws ssm get-parameter --name %s --with-decryption --query Parameter.Value --output text 2>&1',
+        escapeshellarg($ssm_name));
+    $app_password = trim(shell_exec($cmd));
+} else {
+    $app_password = getenv('APP_PASSWORD');
+}
 
 // Skip auth if no password is configured (local dev)
 if ($app_password === false || $app_password === '') {

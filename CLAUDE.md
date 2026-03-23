@@ -1,5 +1,8 @@
 # nba-stats-history
 
+## Rules
+- Always explain proposed changes and wait for explicit approval before editing any files.
+
 ## GitHub / SSH
 When setting up git remotes, use `git@github-claude` instead of `git@github.com` to ensure the correct SSH key (`~/.ssh/id_ed25519_claude`) is used for this personal GitHub account.
 

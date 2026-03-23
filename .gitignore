@@ -3,3 +3,4 @@ loader/.venv/
 .aws-sam/
 .claude/settings.local.json
 CLAUDE.local.md
+loader.log
