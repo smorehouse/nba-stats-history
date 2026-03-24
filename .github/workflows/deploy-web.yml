@@ -60,6 +60,7 @@ jobs:
             --stack-name ${{ env.STACK_NAME }} \
             --parameter-overrides \
               WebImageUri=${{ steps.build-image.outputs.image_uri }} \
+              CertificateArn=arn:aws:acm:us-east-2:100055760442:certificate/a24943d9-289c-41c9-845a-a721c47cf1ba \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \

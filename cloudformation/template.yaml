@@ -6,6 +6,9 @@ Parameters:
   WebImageUri:
     Type: String
     Description: ECR image URI for the web Lambda
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for zscore.mascasa.cc
 
 Globals:
   Function:
@@ -48,6 +51,31 @@ Resources:
             Path: /{proxy+}
             Method: ANY
 
+  CustomDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Properties:
+      DomainName: zscore.mascasa.cc
+      DomainNameConfigurations:
+        - CertificateArn: !Ref CertificateArn
+          EndpointType: REGIONAL
+
+  ApiMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Properties:
+      DomainName: !Ref CustomDomain
+      ApiId: !Ref ServerlessHttpApi
+      Stage: $default
+
+  DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: Z19L3PA4SHN433
+      Name: zscore.mascasa.cc
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt CustomDomain.RegionalDomainName
+        HostedZoneId: !GetAtt CustomDomain.RegionalHostedZoneId
+
 Outputs:
   ApiUrl:
     Description: URL of the web app
@@ -55,3 +83,6 @@ Outputs:
   DatabaseBucketName:
     Description: S3 bucket for the SQLite database
     Value: !Ref DatabaseBucket
+  CustomDomainUrl:
+    Description: Custom domain URL
+    Value: https://zscore.mascasa.cc
