@@ -3,7 +3,7 @@ name: release
 description: Analyze changes since last version tag, propose a semver bump, and create a new release tag after user approval.
 disable-model-invocation: true
 allowed-tools: Bash(git *), Read, Grep, Glob
-argument-hint: [optional: force version, e.g. v1.2.0]
+argument-hint: "optional: force version, e.g. v1.2.0"
 ---
 
 # Release — Semver Version Bump
