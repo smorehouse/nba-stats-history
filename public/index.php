@@ -10,7 +10,7 @@ $min_games = (int)($_GET['min_games'] ?? 5);
 $use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : true;
 
 // Punt categories
-$all_categories = ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m', 'fg_impact', 'ft_impact'];
+$all_categories = ['fg_impact', 'ft_impact', 'fg3m', 'pts', 'reb', 'ast', 'stl', 'blk'];
 $punt = isset($_GET['punt']) && is_array($_GET['punt'])
     ? array_intersect($_GET['punt'], $all_categories)
     : [];
@@ -195,8 +195,8 @@ unset($p);
         <div class="punt-panel <?= !empty($punt) ? 'open' : '' ?>">
             <?php
             $punt_labels = [
-                'pts' => 'PTS', 'reb' => 'REB', 'ast' => 'AST', 'stl' => 'STL',
-                'blk' => 'BLK', 'fg3m' => '3PM', 'fg_impact' => 'FG%', 'ft_impact' => 'FT%',
+                'fg_impact' => 'FG%', 'ft_impact' => 'FT%', 'fg3m' => '3PM', 'pts' => 'PTS',
+                'reb' => 'REB', 'ast' => 'AST', 'stl' => 'STL', 'blk' => 'BLK',
             ];
             foreach ($punt_labels as $val => $label): ?>
                 <label>
@@ -215,12 +215,12 @@ unset($p);
         <?php
         // Column definitions for avg and z-score sections
         $avg_cols = [
-            'pts' => 'PTS', 'reb' => 'REB', 'ast' => 'AST', 'stl' => 'STL',
-            'blk' => 'BLK', 'fg3m' => '3PM', 'fg_impact' => 'FG%', 'ft_impact' => 'FT%',
+            'fg_impact' => 'FG%', 'ft_impact' => 'FT%', 'fg3m' => '3PM', 'pts' => 'PTS',
+            'reb' => 'REB', 'ast' => 'AST', 'stl' => 'STL', 'blk' => 'BLK',
         ];
         $z_cols = [
-            'pts' => 'zPTS', 'reb' => 'zREB', 'ast' => 'zAST', 'stl' => 'zSTL',
-            'blk' => 'zBLK', 'fg3m' => 'z3PM', 'fg_impact' => 'zFG', 'ft_impact' => 'zFT',
+            'fg_impact' => 'zFG', 'ft_impact' => 'zFT', 'fg3m' => 'z3PM', 'pts' => 'zPTS',
+            'reb' => 'zREB', 'ast' => 'zAST', 'stl' => 'zSTL', 'blk' => 'zBLK',
         ];
         $col = 0;
         ?>
@@ -245,14 +245,14 @@ unset($p);
             <?php
             // Map category keys to their display value getters
             $avg_display = [
+                'fg_impact' => fn($p) => $p['fg_pct'] . '%',
+                'ft_impact' => fn($p) => $p['ft_pct'] . '%',
+                'fg3m' => fn($p) => $p['fg3m'],
                 'pts' => fn($p) => $p['pts'],
                 'reb' => fn($p) => $p['reb'],
                 'ast' => fn($p) => $p['ast'],
                 'stl' => fn($p) => $p['stl'],
                 'blk' => fn($p) => $p['blk'],
-                'fg3m' => fn($p) => $p['fg3m'],
-                'fg_impact' => fn($p) => $p['fg_pct'] . '%',
-                'ft_impact' => fn($p) => $p['ft_pct'] . '%',
             ];
             foreach ($players as $p): ?>
             <tr>
