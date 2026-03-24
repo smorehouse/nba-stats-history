@@ -9,6 +9,12 @@ $date_to = $_GET['to'] ?? date('Y-m-d');
 $min_games = (int)($_GET['min_games'] ?? 5);
 $use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : true;
 
+// Punt categories
+$all_categories = ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m', 'fg_impact', 'ft_impact'];
+$punt = isset($_GET['punt']) && is_array($_GET['punt'])
+    ? array_intersect($_GET['punt'], $all_categories)
+    : [];
+
 // Fetch per-player aggregates in the date range
 $stmt = $db->prepare('
     SELECT
@@ -76,9 +82,8 @@ foreach ($players as &$p) {
 }
 unset($p);
 
-// Z-score calculation
-// Categories: pts, reb, ast, stl, blk, fg3m, fg_impact, ft_impact
-$categories = ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m', 'fg_impact', 'ft_impact'];
+// Z-score calculation — exclude punted categories
+$categories = array_values(array_diff($all_categories, $punt));
 
 function calc_mean_std(array $values): array {
     $n = count($values);
@@ -137,6 +142,10 @@ unset($p);
         .controls button { padding: 0.5rem 1.25rem; font-size: 0.9rem; background: #1d428a; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .controls button:hover { background: #163570; }
         .min-games-group { display: flex; align-items: center; gap: 0.5rem; }
+        .punt-toggle { display: flex; align-items: center; gap: 0.5rem; }
+        .punt-panel { display: none; gap: 0.75rem; flex-wrap: wrap; padding: 0.75rem 0 0; width: 100%; }
+        .punt-panel.open { display: flex; }
+        .punt-panel label { font-weight: 400; font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
         .player-count { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.85rem; }
         th, td { padding: 0.4rem 0.6rem; text-align: center; white-space: nowrap; }
@@ -161,7 +170,7 @@ unset($p);
 </head>
 <body>
     <h1>NBA Z-Score Rankings</h1>
-    <p class="subtitle">2025-26 Season &mdash; 8-Category</p>
+    <p class="subtitle">2025-26 Season &mdash; <?= count($categories) ?>-Category<?= !empty($punt) ? ' (punting ' . count($punt) . ')' : '' ?></p>
 
     <form class="controls" method="get" action="/">
         <input type="hidden" name="apply" value="1">
@@ -178,7 +187,24 @@ unset($p);
             <label for="use_min_games">Min games</label>
             <input type="number" name="min_games" value="<?= $min_games ?>" min="1" max="82">
         </div>
+        <div class="punt-toggle">
+            <input type="checkbox" id="punt_toggle" <?= !empty($punt) ? 'checked' : '' ?>>
+            <label for="punt_toggle">Punt</label>
+        </div>
         <button type="submit">Update</button>
+        <div class="punt-panel <?= !empty($punt) ? 'open' : '' ?>">
+            <?php
+            $punt_labels = [
+                'pts' => 'PTS', 'reb' => 'REB', 'ast' => 'AST', 'stl' => 'STL',
+                'blk' => 'BLK', 'fg3m' => '3PM', 'fg_impact' => 'FG%', 'ft_impact' => 'FT%',
+            ];
+            foreach ($punt_labels as $val => $label): ?>
+                <label>
+                    <input type="checkbox" name="punt[]" value="<?= $val ?>" <?= in_array($val, $punt) ? 'checked' : '' ?>>
+                    <?= $label ?>
+                </label>
+            <?php endforeach; ?>
+        </div>
     </form>
 
     <p class="player-count"><?= count($players) ?> players</p>
@@ -186,33 +212,49 @@ unset($p);
     <?php if (!empty($players)): ?>
     <div style="overflow-x: auto;">
     <table>
+        <?php
+        // Column definitions for avg and z-score sections
+        $avg_cols = [
+            'pts' => 'PTS', 'reb' => 'REB', 'ast' => 'AST', 'stl' => 'STL',
+            'blk' => 'BLK', 'fg3m' => '3PM', 'fg_impact' => 'FG%', 'ft_impact' => 'FT%',
+        ];
+        $z_cols = [
+            'pts' => 'zPTS', 'reb' => 'zREB', 'ast' => 'zAST', 'stl' => 'zSTL',
+            'blk' => 'zBLK', 'fg3m' => 'z3PM', 'fg_impact' => 'zFG', 'ft_impact' => 'zFT',
+        ];
+        $col = 0;
+        ?>
         <thead>
             <tr>
-                <th class="sortable" data-col="0" data-type="num">#</th>
-                <th class="sortable" data-col="1" data-type="str">Player</th>
-                <th class="sortable" data-col="2" data-type="num">GP</th>
-                <th class="sortable" data-col="3" data-type="num">MIN</th>
-                <th class="sortable section-start" data-col="4" data-type="num">PTS</th>
-                <th class="sortable" data-col="5" data-type="num">REB</th>
-                <th class="sortable" data-col="6" data-type="num">AST</th>
-                <th class="sortable" data-col="7" data-type="num">STL</th>
-                <th class="sortable" data-col="8" data-type="num">BLK</th>
-                <th class="sortable" data-col="9" data-type="num">3PM</th>
-                <th class="sortable" data-col="10" data-type="num">FG%</th>
-                <th class="sortable" data-col="11" data-type="num">FT%</th>
-                <th class="sortable section-start" data-col="12" data-type="num">zPTS</th>
-                <th class="sortable" data-col="13" data-type="num">zREB</th>
-                <th class="sortable" data-col="14" data-type="num">zAST</th>
-                <th class="sortable" data-col="15" data-type="num">zSTL</th>
-                <th class="sortable" data-col="16" data-type="num">zBLK</th>
-                <th class="sortable" data-col="17" data-type="num">z3PM</th>
-                <th class="sortable" data-col="18" data-type="num">zFG</th>
-                <th class="sortable" data-col="19" data-type="num">zFT</th>
-                <th class="sortable section-start" data-col="20" data-type="num">Z-Total</th>
+                <th class="sortable" data-col="<?= $col++ ?>" data-type="num">#</th>
+                <th class="sortable" data-col="<?= $col++ ?>" data-type="str">Player</th>
+                <th class="sortable" data-col="<?= $col++ ?>" data-type="num">GP</th>
+                <th class="sortable" data-col="<?= $col++ ?>" data-type="num">MIN</th>
+                <?php $first_avg = true; foreach ($avg_cols as $key => $label):
+                    if (in_array($key, $punt)) continue; ?>
+                    <th class="sortable<?= $first_avg ? ' section-start' : '' ?>" data-col="<?= $col++ ?>" data-type="num"><?= $label ?></th>
+                <?php $first_avg = false; endforeach; ?>
+                <?php $first_z = true; foreach ($z_cols as $key => $label):
+                    if (in_array($key, $punt)) continue; ?>
+                    <th class="sortable<?= $first_z ? ' section-start' : '' ?>" data-col="<?= $col++ ?>" data-type="num"><?= $label ?></th>
+                <?php $first_z = false; endforeach; ?>
+                <th class="sortable section-start" data-col="<?= $col++ ?>" data-type="num">Z-Total</th>
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($players as $p): ?>
+            <?php
+            // Map category keys to their display value getters
+            $avg_display = [
+                'pts' => fn($p) => $p['pts'],
+                'reb' => fn($p) => $p['reb'],
+                'ast' => fn($p) => $p['ast'],
+                'stl' => fn($p) => $p['stl'],
+                'blk' => fn($p) => $p['blk'],
+                'fg3m' => fn($p) => $p['fg3m'],
+                'fg_impact' => fn($p) => $p['fg_pct'] . '%',
+                'ft_impact' => fn($p) => $p['ft_pct'] . '%',
+            ];
+            foreach ($players as $p): ?>
             <tr>
                 <td class="rank-col"><?= $p['rank'] ?></td>
                 <td class="player-name">
@@ -222,19 +264,15 @@ unset($p);
                 </td>
                 <td><?= $p['gp'] ?></td>
                 <td><?= $p['min'] ?></td>
-                <td class="section-start"><?= $p['pts'] ?></td>
-                <td><?= $p['reb'] ?></td>
-                <td><?= $p['ast'] ?></td>
-                <td><?= $p['stl'] ?></td>
-                <td><?= $p['blk'] ?></td>
-                <td><?= $p['fg3m'] ?></td>
-                <td><?= $p['fg_pct'] ?>%</td>
-                <td><?= $p['ft_pct'] ?>%</td>
-                <?php foreach (['pts','reb','ast','stl','blk','fg3m','fg_impact','ft_impact'] as $i => $cat): ?>
-                    <td class="<?= $i === 0 ? 'section-start ' : '' ?><?= $p['z_'.$cat] >= 0 ? 'z-pos' : 'z-neg' ?>">
+                <?php $first_avg = true; foreach ($avg_display as $key => $getter):
+                    if (in_array($key, $punt)) continue; ?>
+                    <td<?= $first_avg ? ' class="section-start"' : '' ?>><?= $getter($p) ?></td>
+                <?php $first_avg = false; endforeach; ?>
+                <?php $first_z = true; foreach ($categories as $cat):  ?>
+                    <td class="<?= $first_z ? 'section-start ' : '' ?><?= $p['z_'.$cat] >= 0 ? 'z-pos' : 'z-neg' ?>">
                         <?= $p['z_'.$cat] >= 0 ? '+' : '' ?><?= number_format($p['z_'.$cat], 2) ?>
                     </td>
-                <?php endforeach; ?>
+                <?php $first_z = false; endforeach; ?>
                 <td class="section-start z-total <?= $p['z_total'] >= 0 ? 'z-pos' : 'z-neg' ?>">
                     <?= $p['z_total'] >= 0 ? '+' : '' ?><?= number_format($p['z_total'], 2) ?>
                 </td>
@@ -249,6 +287,18 @@ unset($p);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Punt panel toggle
+    var puntToggle = document.getElementById('punt_toggle');
+    var puntPanel = document.querySelector('.punt-panel');
+    if (puntToggle && puntPanel) {
+        puntToggle.addEventListener('change', function() {
+            puntPanel.classList.toggle('open', this.checked);
+            if (!this.checked) {
+                puntPanel.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+            }
+        });
+    }
+
     const table = document.querySelector('table');
     if (!table) return;
     const tbody = table.querySelector('tbody');
