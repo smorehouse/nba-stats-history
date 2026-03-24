@@ -2,11 +2,7 @@ name: Deploy Loader
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'loader/**'
-      - 'Dockerfile.loader'
-      - '.github/workflows/deploy-loader.yml'
+    tags: ['v*']
 
 env:
   AWS_REGION: us-east-2
@@ -42,7 +38,7 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ github.ref_name }}
         run: |
           docker build -f Dockerfile.loader -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG

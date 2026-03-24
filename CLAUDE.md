@@ -19,7 +19,8 @@ NBA player stats history viewer. View any player's game-by-game performance over
 - **Database**: SQLite (`db/nba.sqlite`)
 - **Web app**: PHP (vanilla, no framework)
 - **Deployment**: Docker container on AWS Lambda via SAM
-- **CI/CD**: GitHub Actions — builds Docker image, pushes to ECR, deploys via SAM on push to `main`
+- **CI/CD**: GitHub Actions — builds Docker image, pushes to ECR, deploys via SAM on version tag push
+- **Versioning**: Semver via git tags — use `/release` slash command to create new versions
 
 ## Project Structure
 ```
@@ -36,6 +37,7 @@ Dockerfile.loader — Python loader container image
 - Start dev server: `./start.sh`
 - Load data: `loader/.venv/bin/python loader/load_gamelog.py`
 - Upload DB to S3: `aws s3 cp db/nba.sqlite s3://BUCKET/nba.sqlite`
+- Release new version: `/release` (analyzes changes, proposes semver bump, tags + deploys after approval)
 
 ## AWS Setup
 - Password stored in SSM: `/nba-stats/app-password`
