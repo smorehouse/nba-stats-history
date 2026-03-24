@@ -130,39 +130,107 @@ unset($p);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NBA Stats History &mdash; Z-Score Rankings</title>
+    <script>
+        // Apply theme before render to prevent flash
+        (function() {
+            var saved = localStorage.getItem('theme');
+            if (saved) document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
     <style>
+        :root {
+            --bg: #f5f5f5;
+            --text: #333;
+            --text-muted: #666;
+            --text-faint: #888;
+            --surface: #fff;
+            --surface-alt: #f9f9f9;
+            --hover: #e8edf5;
+            --border: #e0e0e0;
+            --shadow: rgba(0,0,0,0.1);
+            --input-border: #ccc;
+            --accent: #1d428a;
+            --accent-hover: #163570;
+            --accent-text: #fff;
+            --z-pos: #2e7d32;
+            --z-neg: #c62828;
+            --punt-bg: #f0f2f5;
+            --th-separator: rgba(255,255,255,0.3);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-muted: #aaa;
+                --text-faint: #888;
+                --surface: #16213e;
+                --surface-alt: #1a2744;
+                --hover: #1f2f50;
+                --border: #2a3a5c;
+                --shadow: rgba(0,0,0,0.3);
+                --input-border: #3a4a6c;
+                --accent: #5b8bd4;
+                --accent-hover: #7aa3e0;
+                --accent-text: #fff;
+                --z-pos: #66bb6a;
+                --z-neg: #ef5350;
+                --punt-bg: #1a2744;
+                --th-separator: rgba(255,255,255,0.15);
+            }
+        }
+        :root[data-theme="dark"] {
+            --bg: #1a1a2e;
+            --text: #e0e0e0;
+            --text-muted: #aaa;
+            --text-faint: #888;
+            --surface: #16213e;
+            --surface-alt: #1a2744;
+            --hover: #1f2f50;
+            --border: #2a3a5c;
+            --shadow: rgba(0,0,0,0.3);
+            --input-border: #3a4a6c;
+            --accent: #5b8bd4;
+            --accent-hover: #7aa3e0;
+            --accent-text: #fff;
+            --z-pos: #66bb6a;
+            --z-neg: #ef5350;
+            --punt-bg: #1a2744;
+            --th-separator: rgba(255,255,255,0.15);
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; padding: 1.5rem; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 1.5rem; }
         h1 { margin-bottom: 0.25rem; }
-        .subtitle { color: #666; margin-bottom: 1.5rem; }
-        .controls { background: white; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
+        #theme-toggle { background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 1.2rem; padding: 0.2rem 0.5rem; line-height: 1; color: var(--text); }
+        #theme-toggle:hover { background: var(--hover); }
+        .subtitle { color: var(--text-muted); margin-bottom: 1.5rem; }
+        .controls { background: var(--surface); border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px var(--shadow); display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
         .controls label { font-weight: 600; font-size: 0.9rem; }
-        .controls input[type="date"], .controls input[type="number"] { padding: 0.4rem; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 4px; }
+        .controls input[type="date"], .controls input[type="number"] { padding: 0.4rem; font-size: 0.9rem; border: 1px solid var(--input-border); border-radius: 4px; background: var(--surface); color: var(--text); }
         .controls input[type="number"] { width: 60px; }
-        .controls button { padding: 0.5rem 1.25rem; font-size: 0.9rem; background: #1d428a; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .controls button:hover { background: #163570; }
+        .controls button { padding: 0.5rem 1.25rem; font-size: 0.9rem; background: var(--accent); color: var(--accent-text); border: none; border-radius: 4px; cursor: pointer; }
+        .controls button:hover { background: var(--accent-hover); }
         .min-games-group { display: flex; align-items: center; gap: 0.5rem; }
         .punt-toggle { display: flex; align-items: center; gap: 0.5rem; }
         .punt-panel { display: none; gap: 0.75rem; flex-wrap: wrap; padding: 0.75rem 0 0; width: 100%; }
         .punt-panel.open { display: flex; }
         .punt-panel label { font-weight: 400; font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
-        .player-count { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.85rem; }
+        .player-count { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+        table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px var(--shadow); font-size: 0.85rem; }
         th, td { padding: 0.4rem 0.6rem; text-align: center; white-space: nowrap; }
-        th { background: #1d428a; color: white; font-size: 0.75rem; text-transform: uppercase; position: sticky; top: 0; }
-        th.section-start { border-left: 2px solid rgba(255,255,255,0.3); }
-        td.section-start { border-left: 2px solid #e0e0e0; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        tr:hover { background: #e8edf5; }
+        th { background: var(--accent); color: var(--accent-text); font-size: 0.75rem; text-transform: uppercase; position: sticky; top: 0; }
+        th.section-start { border-left: 2px solid var(--th-separator); }
+        td.section-start { border-left: 2px solid var(--border); }
+        tr:nth-child(even) { background: var(--surface-alt); }
+        tr:hover { background: var(--hover); }
         td.player-name { text-align: left; font-weight: 500; }
-        td.player-name a { color: #1d428a; text-decoration: none; }
+        td.player-name a { color: var(--accent); text-decoration: none; }
         td.player-name a:hover { text-decoration: underline; }
-        .z-pos { color: #2e7d32; }
-        .z-neg { color: #c62828; }
+        .z-pos { color: var(--z-pos); }
+        .z-neg { color: var(--z-neg); }
         .z-total { font-weight: 700; font-size: 0.95rem; }
-        .rank-col { color: #888; font-weight: 600; }
+        .rank-col { color: var(--text-faint); font-weight: 600; }
         th.sortable { cursor: pointer; user-select: none; }
-        th.sortable:hover { background: #163570; }
+        th.sortable:hover { background: var(--accent-hover); }
         th.sortable::after { content: ' \2195'; opacity: 0.4; font-size: 0.7rem; }
         th.sort-asc::after { content: ' \2191'; opacity: 1; }
         th.sort-desc::after { content: ' \2193'; opacity: 1; }
@@ -192,6 +260,7 @@ unset($p);
             <label for="punt_toggle">Punt</label>
         </div>
         <button type="submit">Update</button>
+        <button type="button" id="theme-toggle" title="Toggle dark mode" style="margin-left: auto;"></button>
         <div class="punt-panel <?= !empty($punt) ? 'open' : '' ?>">
             <?php
             $punt_labels = [
@@ -287,6 +356,22 @@ unset($p);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Theme toggle
+    var html = document.documentElement;
+    var toggle = document.getElementById('theme-toggle');
+    function isDark() {
+        return html.getAttribute('data-theme') === 'dark' ||
+            (!html.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    function updateIcon() { toggle.textContent = isDark() ? '\u2600\uFE0F' : '\uD83C\uDF19'; }
+    updateIcon();
+    toggle.addEventListener('click', function() {
+        var next = isDark() ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        updateIcon();
+    });
+
     // Punt panel toggle
     var puntToggle = document.getElementById('punt_toggle');
     var puntPanel = document.querySelector('.punt-panel');
