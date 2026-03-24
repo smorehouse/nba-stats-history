@@ -151,6 +151,7 @@ Resources:
                 Action:
                   - route53:ChangeResourceRecordSets
                   - route53:GetChange
+                  - route53:GetHostedZone
                 Resource:
                   - arn:aws:route53:::hostedzone/Z19L3PA4SHN433
                   - arn:aws:route53:::change/*
