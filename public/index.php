@@ -4,10 +4,11 @@ require_once __DIR__ . '/db.php';
 $db = get_db();
 
 // Defaults
+$date_mode = $_GET['date_mode'] ?? 'full_season';
 $date_from = $_GET['from'] ?? date('Y-m-d', strtotime('-30 days'));
-$date_to = $_GET['to'] ?? date('Y-m-d');
+$date_to   = $_GET['to']   ?? date('Y-m-d');
 $min_games = (int)($_GET['min_games'] ?? 5);
-$use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : true;
+$use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : false;
 
 // Punt categories
 $all_categories = ['fg_impact', 'ft_impact', 'fg3m', 'pts', 'reb', 'ast', 'stl', 'blk'];
@@ -16,7 +17,10 @@ $punt = isset($_GET['punt']) && is_array($_GET['punt'])
     : [];
 
 // Fetch per-player aggregates in the date range
-$stmt = $db->prepare('
+$where_date = $date_mode === 'selected_dates'
+    ? 'AND g.game_date >= :date_from AND g.game_date <= :date_to'
+    : '';
+$stmt = $db->prepare("
     SELECT
         p.player_id,
         p.player_name,
@@ -34,11 +38,15 @@ $stmt = $db->prepare('
         SUM(g.fta) AS total_fta
     FROM game_logs g
     JOIN players p ON p.player_id = g.player_id
-    WHERE g.game_date >= :date_from
-      AND g.game_date <= :date_to
+    WHERE 1=1 $where_date
     GROUP BY g.player_id
-');
-$stmt->execute([':date_from' => $date_from, ':date_to' => $date_to]);
+");
+$params = [];
+if ($date_mode === 'selected_dates') {
+    $params[':date_from'] = $date_from;
+    $params[':date_to']   = $date_to;
+}
+$stmt->execute($params);
 $raw = $stmt->fetchAll();
 
 // Filter by minimum games if toggled
@@ -209,6 +217,10 @@ unset($p);
         .controls input[type="number"] { width: 60px; }
         .controls button { padding: 0.5rem 1.25rem; font-size: 0.9rem; background: var(--accent); color: var(--accent-text); border: none; border-radius: 4px; cursor: pointer; }
         .controls button:hover { background: var(--accent-hover); }
+        .date-mode-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .date-mode-group > label { font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+        .date-inputs { display: none; align-items: center; gap: 0.5rem; margin-top: 0.25rem; flex-wrap: wrap; }
+        .date-inputs.open { display: flex; }
         .min-games-group { display: flex; align-items: center; gap: 0.5rem; }
         .punt-toggle { display: flex; align-items: center; gap: 0.5rem; }
         .punt-panel { display: none; gap: 0.75rem; flex-wrap: wrap; padding: 0.75rem 0 0; width: 100%; }
@@ -242,13 +254,15 @@ unset($p);
 
     <form class="controls" method="get" action="/">
         <input type="hidden" name="apply" value="1">
-        <div>
-            <label for="from">From</label><br>
-            <input type="date" id="from" name="from" value="<?= htmlspecialchars($date_from) ?>">
-        </div>
-        <div>
-            <label for="to">To</label><br>
-            <input type="date" id="to" name="to" value="<?= htmlspecialchars($date_to) ?>">
+        <input type="hidden" id="date_mode_input" name="date_mode" value="<?= htmlspecialchars($date_mode) ?>">
+        <div class="date-mode-group">
+            <label><input type="checkbox" id="mode_full" <?= $date_mode !== 'selected_dates' ? 'checked' : '' ?>> Full Season</label>
+            <label><input type="checkbox" id="mode_dates" <?= $date_mode === 'selected_dates' ? 'checked' : '' ?>> Selected Dates</label>
+            <div class="date-inputs<?= $date_mode === 'selected_dates' ? ' open' : '' ?>" id="date_inputs">
+                <input type="date" name="from" value="<?= htmlspecialchars($date_from) ?>">
+                <span>to</span>
+                <input type="date" name="to" value="<?= htmlspecialchars($date_to) ?>">
+            </div>
         </div>
         <div class="min-games-group">
             <input type="checkbox" id="use_min_games" name="use_min_games" value="1" <?= $use_min_games ? 'checked' : '' ?>>
@@ -371,6 +385,20 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('theme', next);
         updateIcon();
     });
+
+    // Date mode toggle
+    var modeFull      = document.getElementById('mode_full');
+    var modeDates     = document.getElementById('mode_dates');
+    var dateInputs    = document.getElementById('date_inputs');
+    var dateModeInput = document.getElementById('date_mode_input');
+    function setMode(mode) {
+        modeFull.checked  = (mode === 'full_season');
+        modeDates.checked = (mode === 'selected_dates');
+        dateInputs.classList.toggle('open', mode === 'selected_dates');
+        dateModeInput.value = mode;
+    }
+    modeFull.addEventListener('change',  function() { setMode(this.checked ? 'full_season' : 'selected_dates'); });
+    modeDates.addEventListener('change', function() { setMode(this.checked ? 'selected_dates' : 'full_season'); });
 
     // Punt panel toggle
     var puntToggle = document.getElementById('punt_toggle');
