@@ -7,7 +7,7 @@ $db = get_db();
 $date_mode = $_GET['date_mode'] ?? 'full_season';
 $date_from = $_GET['from'] ?? date('Y-m-d', strtotime('-30 days'));
 $date_to   = $_GET['to']   ?? date('Y-m-d');
-$min_games = (int)($_GET['min_games'] ?? 5);
+$min_games = (int)($_GET['min_games'] ?? 10);
 $use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : false;
 
 // Punt categories
