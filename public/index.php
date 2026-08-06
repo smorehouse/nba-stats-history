@@ -9,6 +9,7 @@ $date_from = $_GET['from'] ?? date('Y-m-d', strtotime('-30 days'));
 $date_to   = $_GET['to']   ?? date('Y-m-d');
 $min_games = (int)($_GET['min_games'] ?? 10);
 $use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : false;
+$calc_mode = $_GET['calc_mode'] ?? 'strict';
 
 // Punt categories
 $all_categories = ['fg_impact', 'ft_impact', 'fg3m', 'pts', 'reb', 'ast', 'stl', 'blk'];
@@ -106,15 +107,40 @@ function calc_mean_std(array $values): array {
     return ['mean' => $mean, 'std' => $std];
 }
 
+function calc_median_iqr(array $values): array {
+    sort($values);
+    $n = count($values);
+    if ($n === 0) return ['median' => 0, 'iqr' => 1];
+    $median = $values[intdiv($n, 2)];
+    $q1 = $values[intdiv($n, 4)];
+    $q3 = $values[intdiv(3 * $n, 4)];
+    $iqr = $q3 - $q1;
+    if ($iqr == 0) $iqr = 1;
+    return ['median' => $median, 'iqr' => $iqr];
+}
+
 $stats = [];
 foreach ($categories as $cat) {
-    $stats[$cat] = calc_mean_std(array_column($players, $cat));
+    $col = array_column($players, $cat);
+    $stats[$cat] = calc_mean_std($col);
+    $stats[$cat] += calc_median_iqr($col);
+    $stats[$cat]['min'] = min($col);
+    $stats[$cat]['max'] = max($col);
 }
 
 foreach ($players as &$p) {
     $total_z = 0;
     foreach ($categories as $cat) {
-        $z = ($p[$cat] - $stats[$cat]['mean']) / $stats[$cat]['std'];
+        $s = $stats[$cat];
+        if ($calc_mode === 'minmax') {
+            $range = $s['max'] - $s['min'];
+            $z = $range > 0 ? ($p[$cat] - $s['min']) / $range * 2 - 1 : 0;
+        } elseif ($calc_mode === 'combined') {
+            $z = ($p[$cat] - $s['median']) / $s['iqr'];
+            $z = max(-3, min(3, $z));
+        } else {
+            $z = ($p[$cat] - $s['mean']) / $s['std'];
+        }
         $p['z_' . $cat] = round($z, 2);
         $total_z += $z;
     }
@@ -223,13 +249,15 @@ unset($p);
         .date-inputs.open { display: flex; }
         .min-games-group { display: flex; align-items: center; gap: 0.5rem; }
         .punt-toggle { display: flex; align-items: center; gap: 0.5rem; }
+        .calc-mode-group { display: flex; align-items: center; gap: 0.5rem; }
+        .calc-mode-group select { padding: 0.4rem; font-size: 0.9rem; border: 1px solid var(--input-border); border-radius: 4px; background: var(--surface); color: var(--text); }
         .punt-panel { display: none; gap: 0.75rem; flex-wrap: wrap; padding: 0.75rem 0 0; width: 100%; }
         .punt-panel.open { display: flex; }
         .punt-panel label { font-weight: 400; font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
         .player-count { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
-        table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px var(--shadow); font-size: 0.85rem; }
+        table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; box-shadow: 0 1px 3px var(--shadow); font-size: 0.85rem; }
         th, td { padding: 0.4rem 0.6rem; text-align: center; white-space: nowrap; }
-        th { background: var(--accent); color: var(--accent-text); font-size: 0.75rem; text-transform: uppercase; position: sticky; top: 0; }
+        th { background: var(--accent); color: var(--accent-text); font-size: 0.75rem; text-transform: uppercase; position: sticky; top: 0; z-index: 10; }
         th.section-start { border-left: 2px solid var(--th-separator); }
         td.section-start { border-left: 2px solid var(--border); }
         tr:nth-child(even) { background: var(--surface-alt); }
@@ -273,6 +301,14 @@ unset($p);
             <input type="checkbox" id="punt_toggle" <?= !empty($punt) ? 'checked' : '' ?>>
             <label for="punt_toggle">Punt</label>
         </div>
+        <div class="calc-mode-group">
+            <label for="calc_mode">Method</label>
+            <select name="calc_mode" id="calc_mode">
+                <option value="strict" <?= $calc_mode === 'strict' ? 'selected' : '' ?>>Strict Z-Score</option>
+                <option value="minmax" <?= $calc_mode === 'minmax' ? 'selected' : '' ?>>Min-Max Normalization</option>
+                <option value="combined" <?= $calc_mode === 'combined' ? 'selected' : '' ?>>Claude Combined</option>
+            </select>
+        </div>
         <button type="submit">Update</button>
         <button type="button" id="theme-toggle" title="Toggle dark mode" style="margin-left: auto;"></button>
         <div class="punt-panel <?= !empty($punt) ? 'open' : '' ?>">
@@ -293,7 +329,7 @@ unset($p);
     <p class="player-count"><?= count($players) ?> players</p>
 
     <?php if (!empty($players)): ?>
-    <div style="overflow-x: auto;">
+    <div style="overflow: auto; max-height: 80vh;">
     <table>
         <?php
         // Column definitions for avg and z-score sections
@@ -341,7 +377,7 @@ unset($p);
             <tr>
                 <td class="rank-col"><?= $p['rank'] ?></td>
                 <td class="player-name">
-                    <a href="/player.php?id=<?= $p['player_id'] ?>&from=<?= urlencode($date_from) ?>&to=<?= urlencode($date_to) ?>">
+                    <a href="/player.php?id=<?= $p['player_id'] ?><?= $date_mode === 'selected_dates' ? '&from=' . urlencode($date_from) . '&to=' . urlencode($date_to) : '' ?>">
                         <?= htmlspecialchars($p['player_name']) ?>
                     </a>
                 </td>

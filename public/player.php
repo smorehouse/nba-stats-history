@@ -4,8 +4,9 @@ require_once __DIR__ . '/db.php';
 $db = get_db();
 
 $player_id = (int)($_GET['id'] ?? 0);
-$date_from = $_GET['from'] ?? date('Y-m-d', strtotime('-30 days'));
-$date_to = $_GET['to'] ?? date('Y-m-d');
+$date_from = $_GET['from'] ?? null;
+$date_to = $_GET['to'] ?? null;
+$full_season = !$date_from && !$date_to;
 
 // Get player info
 $stmt = $db->prepare('SELECT player_name FROM players WHERE player_id = :id');
@@ -16,19 +17,28 @@ if (!$player) {
     die('Player not found.');
 }
 
-// Get game logs within date range
-$stmt = $db->prepare('
-    SELECT * FROM game_logs
-    WHERE player_id = :id
-      AND game_date >= :date_from
-      AND game_date <= :date_to
-    ORDER BY game_date DESC
-');
-$stmt->execute([
-    ':id' => $player_id,
-    ':date_from' => $date_from,
-    ':date_to' => $date_to,
-]);
+// Get game logs, optionally filtered by date range
+if ($full_season) {
+    $stmt = $db->prepare('
+        SELECT * FROM game_logs
+        WHERE player_id = :id
+        ORDER BY game_date DESC
+    ');
+    $stmt->execute([':id' => $player_id]);
+} else {
+    $stmt = $db->prepare('
+        SELECT * FROM game_logs
+        WHERE player_id = :id
+          AND game_date >= :date_from
+          AND game_date <= :date_to
+        ORDER BY game_date DESC
+    ');
+    $stmt->execute([
+        ':id' => $player_id,
+        ':date_from' => $date_from,
+        ':date_to' => $date_to,
+    ]);
+}
 $games = $stmt->fetchAll();
 
 // Compute averages
@@ -55,7 +65,7 @@ if ($count > 0) {
 }
 
 // Build back link preserving date range
-$back_params = http_build_query(['from' => $date_from, 'to' => $date_to]);
+$back_params = $full_season ? '' : http_build_query(['from' => $date_from, 'to' => $date_to]);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -150,7 +160,7 @@ $back_params = http_build_query(['from' => $date_from, 'to' => $date_to]);
         <h1><?= htmlspecialchars($player['player_name']) ?></h1>
         <button id="theme-toggle" title="Toggle dark mode"></button>
     </div>
-    <p class="subtitle"><?= $date_from ?> to <?= $date_to ?> (<?= $count ?> games)</p>
+    <p class="subtitle"><?= $full_season ? 'Full Season' : "$date_from to $date_to" ?> (<?= $count ?> games)</p>
 
     <?php if ($count > 0): ?>
         <div class="averages">
