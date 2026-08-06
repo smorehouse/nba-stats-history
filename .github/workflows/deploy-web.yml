@@ -3,6 +3,7 @@ name: Deploy Web
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-2
