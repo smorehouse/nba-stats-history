@@ -38,6 +38,7 @@ Dockerfile.loader — Python loader container image
 - Load data: `loader/.venv/bin/python loader/load_gamelog.py`
 - Upload DB to S3: `aws s3 cp db/nba.sqlite s3://BUCKET/nba.sqlite`
 - Release new version: `/release` (analyzes changes, proposes semver bump, tags + deploys after approval)
+- **Important**: When releasing, always push the commit before the tag (`git push origin main` then `git push origin <tag>`). Pushing the tag first can silently skip the GitHub Actions workflow.
 
 ## AWS Setup
 - Password stored in SSM: `/nba-stats/app-password`
