@@ -126,6 +126,9 @@ foreach ($categories as $cat) {
     $stats[$cat] += calc_median_iqr($col);
     $stats[$cat]['min'] = min($col);
     $stats[$cat]['max'] = max($col);
+    $sorted = $col;
+    sort($sorted);
+    $stats[$cat]['p60'] = $sorted[(int)(count($sorted) * 0.60)];
 }
 
 foreach ($players as &$p) {
@@ -135,6 +138,12 @@ foreach ($players as &$p) {
         if ($calc_mode === 'minmax') {
             $range = $s['max'] - $s['min'];
             $z = $range > 0 ? ($p[$cat] - $s['min']) / $range * 2 - 1 : 0;
+        } elseif ($calc_mode === 'minmax_median') {
+            $center = $s['p60'];
+            $above = $s['max'] - $center;
+            $below = $center - $s['min'];
+            $scale = max($above, $below);
+            $z = $scale > 0 ? ($p[$cat] - $center) / $scale : 0;
         } elseif ($calc_mode === 'combined') {
             $z = ($p[$cat] - $s['median']) / $s['iqr'];
             $z = max(-3, min(3, $z));
@@ -306,6 +315,7 @@ unset($p);
             <select name="calc_mode" id="calc_mode">
                 <option value="strict" <?= $calc_mode === 'strict' ? 'selected' : '' ?>>Strict Z-Score</option>
                 <option value="minmax" <?= $calc_mode === 'minmax' ? 'selected' : '' ?>>Min-Max Normalization</option>
+                <option value="minmax_median" <?= $calc_mode === 'minmax_median' ? 'selected' : '' ?>>Min-Max Median</option>
                 <option value="combined" <?= $calc_mode === 'combined' ? 'selected' : '' ?>>Claude Combined</option>
             </select>
         </div>
