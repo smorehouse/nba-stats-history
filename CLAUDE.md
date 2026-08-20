@@ -40,6 +40,10 @@ Dockerfile.loader — Python loader container image
 - Release new version: `/release` (analyzes changes, proposes semver bump, tags + deploys after approval)
 - **Important**: When releasing, always push the commit before the tag (`git push origin main` then `git push origin <tag>`). Pushing the tag first can silently skip the GitHub Actions workflow.
 
+## API
+- `public/api.php` serves JSON rankings for the openclaw bot (same params as the web UI)
+- When adding or changing query parameters/filters, also update `~/.openclaw/workspace/TOOLS.md` (NBA Stats API section) so clawbot knows about them
+
 ## AWS Setup
 - Password stored in SSM: `/nba-stats/app-password`
 - GitHub Actions needs `AWS_ROLE_ARN` secret (OIDC role for deployment)
