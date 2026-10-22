@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fetch all NBA player game logs for the 2025-26 season and load into SQLite.
+Fetch all NBA player game logs for the 2026-27 season and load into SQLite.
 
 Local usage:
     loader/.venv/bin/python loader/load_gamelog.py
@@ -17,7 +17,7 @@ from pathlib import Path
 from nba_api.stats.endpoints import playergamelog, commonallplayers
 from nba_api.stats.library.parameters import SeasonAll
 
-SEASON = "2025-26"
+SEASON = "2026-27"
 
 # nba.com rate-limits aggressively; be polite
 REQUEST_DELAY = 0.6  # seconds between API calls
