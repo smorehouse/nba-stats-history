@@ -131,7 +131,7 @@ require_once __DIR__ . '/rankings.php';
 </head>
 <body>
     <h1>NBA Z-Score Rankings</h1>
-    <p class="subtitle">2025-26 Season &mdash; <?= count($categories) ?>-Category<?= !empty($punt) ? ' (punting ' . count($punt) . ')' : '' ?></p>
+    <p class="subtitle">2026-27 Season &mdash; <?= count($categories) ?>-Category<?= !empty($punt) ? ' (punting ' . count($punt) . ')' : '' ?></p>
 
     <form class="controls" method="get" action="/">
         <input type="hidden" name="apply" value="1">
