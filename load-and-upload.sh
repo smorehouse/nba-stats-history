@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SECONDS=0
+echo ""
+echo "================================================================================"
+echo "=== NBA Stats Loader — $(date '+%Y-%m-%d %H:%M:%S') ===================================="
+echo "================================================================================"
+echo ""
+
 AWS_REGION="us-east-2"
 ECR_REGISTRY="100055760442.dkr.ecr.${AWS_REGION}.amazonaws.com"
 ECR_REPOSITORY="nba-stats-loader"
@@ -40,3 +47,6 @@ echo "==> Uploading to S3..."
 aws s3 cp "${DB_DIR}/nba.sqlite" "s3://${S3_BUCKET}/${S3_KEY}" --region "$AWS_REGION"
 
 echo "==> Done! Database uploaded to s3://${S3_BUCKET}/${S3_KEY}"
+
+ELAPSED=$SECONDS
+echo "==> Finished at $(date '+%Y-%m-%d %H:%M:%S') ($((ELAPSED / 60))m $((ELAPSED % 60))s)"
