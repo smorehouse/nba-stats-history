@@ -11,16 +11,6 @@ $min_games = (int)($_GET['min_games'] ?? 10);
 $use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : false;
 $calc_mode = $_GET['calc_mode'] ?? 'strict';
 
-// Salary settings
-$use_salary = isset($_GET['apply']) ? isset($_GET['use_salary']) : false;
-$salary_teams = (int)($_GET['salary_teams'] ?? 30);
-$salary_roster = (int)($_GET['salary_roster'] ?? 12);
-$salary_cap = (int)($_GET['salary_cap'] ?? 84000000);
-$salary_pct_max = (int)($_GET['salary_pct_max'] ?? 40);
-$salary_floor = (int)($_GET['salary_floor'] ?? 600000);
-$salary_round = (int)($_GET['salary_round'] ?? 100000);
-$salary_ranked = isset($_GET['apply']) ? isset($_GET['salary_ranked']) : false;
-
 // Punt categories
 $all_categories = ['fg_impact', 'ft_impact', 'fg3m', 'pts', 'reb', 'ast', 'stl', 'blk'];
 $punt = isset($_GET['punt']) && is_array($_GET['punt'])
@@ -104,17 +94,6 @@ unset($p);
 // Z-score calculation -- exclude punted categories
 $categories = array_values(array_diff($all_categories, $punt));
 
-function format_salary(int $value): string {
-    if ($value >= 1000000) {
-        $m = $value / 1000000;
-        return '$' . ($m == (int)$m ? number_format($m, 0) : number_format($m, 1)) . 'M';
-    } elseif ($value >= 1000) {
-        $k = $value / 1000;
-        return '$' . ($k == (int)$k ? number_format($k, 0) : number_format($k, 1)) . 'K';
-    }
-    return '$' . number_format($value);
-}
-
 function calc_mean_std(array $values): array {
     $n = count($values);
     if ($n === 0) return ['mean' => 0, 'std' => 1];
@@ -188,46 +167,22 @@ foreach ($players as &$p) {
 }
 unset($p);
 
-// Salary calculation (power curve distribution)
-if ($use_salary) {
-    $pool_size = $salary_teams * $salary_roster;
-    $max_salary = $salary_cap * ($salary_pct_max / 100);
-    $min_salary = $salary_floor;
-    $log_k = 9;
-    $log_denom = log(1 + $log_k);
-
-    if ($salary_ranked) {
-        foreach ($players as &$p) {
-            if ($pool_size <= 1) {
-                $p['salary'] = $max_salary;
-            } elseif ($p['rank'] <= $pool_size) {
-                $pct = ($pool_size - $p['rank']) / ($pool_size - 1);
-                $scaled = log(1 + $pct * $log_k) / $log_denom;
-                $p['salary'] = $min_salary + ($max_salary - $min_salary) * $scaled;
-            } else {
-                $p['salary'] = $min_salary;
-            }
-            $p['salary'] = $salary_round > 0 ? (int)(round($p['salary'] / $salary_round) * $salary_round) : (int)round($p['salary']);
-        }
-        unset($p);
-    } else {
-        $pool_players = array_slice($players, 0, $pool_size);
-        $z_max = $pool_players[0]['z_total'];
-        $z_min = end($pool_players)['z_total'];
-        $z_range = $z_max - $z_min;
-
-        foreach ($players as &$p) {
-            if ($z_range <= 0) {
-                $p['salary'] = $max_salary;
-            } elseif ($p['rank'] <= $pool_size) {
-                $pct = max(0, ($p['z_total'] - $z_min) / $z_range);
-                $scaled = log(1 + $pct * $log_k) / $log_denom;
-                $p['salary'] = $min_salary + ($max_salary - $min_salary) * $scaled;
-            } else {
-                $p['salary'] = $min_salary;
-            }
-            $p['salary'] = $salary_round > 0 ? (int)(round($p['salary'] / $salary_round) * $salary_round) : (int)round($p['salary']);
-        }
-        unset($p);
+// Load fantasy roster data (team + salary)
+$fantasy = [];
+try {
+    $rows = $db->query("SELECT player_id, fantasy_team, salary FROM fantasy_rosters")->fetchAll();
+    foreach ($rows as $r) {
+        $fantasy[$r['player_id']] = ['team' => $r['fantasy_team'], 'salary' => $r['salary']];
     }
+} catch (PDOException $e) {
+    // Table may not exist yet
+}
+$has_fantasy = !empty($fantasy);
+if ($has_fantasy) {
+    foreach ($players as &$p) {
+        $f = $fantasy[$p['player_id']] ?? null;
+        $p['fantasy_team'] = $f ? $f['team'] : null;
+        $p['fantasy_salary'] = $f ? $f['salary'] : null;
+    }
+    unset($p);
 }

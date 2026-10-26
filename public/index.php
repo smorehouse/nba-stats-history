@@ -97,15 +97,7 @@ require_once __DIR__ . '/rankings.php';
         .punt-panel { display: none; gap: 0.75rem; flex-wrap: wrap; padding: 0.75rem 0 0; width: 100%; }
         .punt-panel.open { display: flex; }
         .punt-panel label { font-weight: 400; font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
-        .salary-toggle { display: flex; align-items: center; gap: 0.5rem; }
-        .salary-panel { display: none; gap: 1rem; flex-wrap: wrap; padding: 0.75rem 0 0; width: 100%; align-items: flex-end; }
-        .salary-panel.open { display: flex; }
-        .salary-field { display: flex; flex-direction: column; gap: 0.25rem; }
-        .salary-field label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
-        .salary-field input[type="number"] { padding: 0.4rem; font-size: 0.9rem; border: 1px solid var(--input-border); border-radius: 4px; width: 120px; background: var(--surface); color: var(--text); }
-        .salary-field select { padding: 0.4rem; font-size: 0.9rem; border: 1px solid var(--input-border); border-radius: 4px; background: var(--surface); color: var(--text); }
-        .salary-checkbox { justify-content: center; }
-        .salary-checkbox label { font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+        .fantasy-team { font-size: 0.75rem; color: var(--text-muted); }
         .player-count { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
         table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; box-shadow: 0 1px 3px var(--shadow); font-size: 0.85rem; }
         th, td { padding: 0.4rem 0.6rem; text-align: center; white-space: nowrap; }
@@ -161,10 +153,6 @@ require_once __DIR__ . '/rankings.php';
         <div class="punt-toggle">
             <input type="checkbox" id="punt_toggle" <?= !empty($punt) ? 'checked' : '' ?>>
             <label for="punt_toggle">Punt</label>
-        </div>
-        <div class="salary-toggle">
-            <input type="checkbox" id="salary_toggle" name="use_salary" value="1" <?= $use_salary ? 'checked' : '' ?>>
-            <label for="salary_toggle">Salary</label>
         </div>
         <div class="calc-mode-group">
             <label for="calc_mode">Method</label>
@@ -225,39 +213,6 @@ require_once __DIR__ . '/rankings.php';
                 </label>
             <?php endforeach; ?>
         </div>
-        <div class="salary-panel <?= $use_salary ? 'open' : '' ?>">
-            <div class="salary-field">
-                <label for="salary_teams">Num. Teams</label>
-                <input type="number" id="salary_teams" name="salary_teams" value="<?= $salary_teams ?>" min="1" max="50">
-            </div>
-            <div class="salary-field">
-                <label for="salary_roster">Roster Size</label>
-                <input type="number" id="salary_roster" name="salary_roster" value="<?= $salary_roster ?>" min="1" max="30">
-            </div>
-            <div class="salary-field">
-                <label for="salary_cap">Salary Cap</label>
-                <input type="number" id="salary_cap" name="salary_cap" value="<?= $salary_cap ?>" min="1">
-            </div>
-            <div class="salary-field">
-                <label for="salary_pct_max">Percent Max</label>
-                <select id="salary_pct_max" name="salary_pct_max">
-                    <?php for ($pct = 20; $pct <= 50; $pct += 5): ?>
-                        <option value="<?= $pct ?>" <?= $salary_pct_max === $pct ? 'selected' : '' ?>><?= $pct ?>%</option>
-                    <?php endfor; ?>
-                </select>
-            </div>
-            <div class="salary-field">
-                <label for="salary_floor">Min. Salary</label>
-                <input type="number" id="salary_floor" name="salary_floor" value="<?= $salary_floor ?>" min="0">
-            </div>
-            <div class="salary-field">
-                <label for="salary_round">Round To</label>
-                <input type="number" id="salary_round" name="salary_round" value="<?= $salary_round ?>" min="0">
-            </div>
-            <div class="salary-field salary-checkbox">
-                <label><input type="checkbox" name="salary_ranked" value="1" <?= $salary_ranked ? 'checked' : '' ?>> Ranked Salary</label>
-            </div>
-        </div>
     </form>
 
     <p class="player-count"><?= count($players) ?> players</p>
@@ -281,6 +236,10 @@ require_once __DIR__ . '/rankings.php';
             <tr>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">#</th>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="str">Player</th>
+                <?php if ($has_fantasy): ?>
+                <th class="sortable" data-col="<?= $col++ ?>" data-type="str">Team</th>
+                <th class="sortable" data-col="<?= $col++ ?>" data-type="num">Salary</th>
+                <?php endif; ?>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">GP</th>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">MIN</th>
                 <?php $first_avg = true; foreach ($avg_cols as $key => $label):
@@ -292,9 +251,6 @@ require_once __DIR__ . '/rankings.php';
                     <th class="sortable<?= $first_z ? ' section-start' : '' ?>" data-col="<?= $col++ ?>" data-type="num"><?= $label ?></th>
                 <?php $first_z = false; endforeach; ?>
                 <th class="sortable section-start" data-col="<?= $col++ ?>" data-type="num">Z-Total</th>
-                <?php if ($use_salary): ?>
-                <th class="sortable section-start" data-col="<?= $col++ ?>" data-type="num">Salary</th>
-                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -318,6 +274,10 @@ require_once __DIR__ . '/rankings.php';
                         <?= htmlspecialchars($p['player_name']) ?>
                     </a>
                 </td>
+                <?php if ($has_fantasy): ?>
+                <td class="fantasy-team"><?= $p['fantasy_team'] ? htmlspecialchars($p['fantasy_team']) : '—' ?></td>
+                <td class="salary-col"><?= $p['fantasy_salary'] ? '$' . number_format($p['fantasy_salary'], 2) . 'M' : '—' ?></td>
+                <?php endif; ?>
                 <td><?= $p['gp'] ?></td>
                 <td><?= $p['min'] ?></td>
                 <?php $first_avg = true; foreach ($avg_display as $key => $getter):
@@ -332,9 +292,6 @@ require_once __DIR__ . '/rankings.php';
                 <td class="section-start z-total <?= $p['z_total'] >= 0 ? 'z-pos' : 'z-neg' ?>">
                     <?= $p['z_total'] >= 0 ? '+' : '' ?><?= number_format($p['z_total'], 2) ?>
                 </td>
-                <?php if ($use_salary): ?>
-                <td class="section-start salary-col"><?= format_salary($p['salary']) ?></td>
-                <?php endif; ?>
             </tr>
             <?php endforeach; ?>
         </tbody>
@@ -398,15 +355,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!this.checked) {
                 puntPanel.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
             }
-        });
-    }
-
-    // Salary panel toggle
-    var salaryToggle = document.getElementById('salary_toggle');
-    var salaryPanel = document.querySelector('.salary-panel');
-    if (salaryToggle && salaryPanel) {
-        salaryToggle.addEventListener('change', function() {
-            salaryPanel.classList.toggle('open', this.checked);
         });
     }
 

@@ -77,6 +77,11 @@ CUR_PLAYERS=$(sqlite3 "${DB_DIR}/nba.sqlite" "SELECT COUNT(*) FROM players")
 CUR_GAMES=$(sqlite3 "${DB_DIR}/nba.sqlite" "SELECT COUNT(*) FROM game_logs")
 sqlite3 "${DB_DIR}/nba.sqlite" "INSERT OR REPLACE INTO loader_runs VALUES ('$(date '+%Y-%m-%d %H:%M:%S')', ${SECONDS}, ${CUR_PLAYERS}, ${CUR_GAMES});"
 
+# Sync fantasy league data from Google Sheet
+echo "==> Syncing fantasy rosters..."
+source "${SCRIPT_DIR}/.env"
+uv run --with openpyxl python3 "${SCRIPT_DIR}/loader/sync_fantasy.py" "$GOOGLE_SHEET_ID" "${DB_DIR}/nba.sqlite"
+
 echo "==> Uploading to S3..."
 aws s3 cp "${DB_DIR}/nba.sqlite" "s3://${S3_BUCKET}/${S3_KEY}" --region "$AWS_REGION"
 

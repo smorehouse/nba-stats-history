@@ -51,8 +51,9 @@ foreach ($players as $p) {
 
     $row['z_total'] = $p['z_total'];
 
-    if ($use_salary) {
-        $row['salary'] = $p['salary'];
+    if ($has_fantasy) {
+        $row['fantasy_team'] = $p['fantasy_team'];
+        $row['fantasy_salary'] = $p['fantasy_salary'];
     }
 
     $result[] = $row;
