@@ -42,6 +42,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
+          docker pull $ECR_REGISTRY/aws-lambda-adapter:1.1.0
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
