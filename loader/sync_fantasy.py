@@ -75,7 +75,7 @@ def parse_team_sheet(ws) -> list[dict]:
             except (ValueError, TypeError):
                 pass
 
-        players.append({"name": name, "salary": salary})
+        players.append({"name": name, "salary": salary, "is_dleague": False})
 
     # Also check column I (index 8) for d-league roster
     d_league_started = False
@@ -90,10 +90,17 @@ def parse_team_sheet(ws) -> list[dict]:
             if val.lower() in SKIP_NAMES or val.lower().startswith("waived"):
                 continue
             clean = re.sub(r"\s*\(\$[\d.]+\)\s*$", "", val).strip()
+            salary = None
             salary_match = re.search(r"\(\$([\d.]+)\)", val)
-            salary = round(float(salary_match.group(1)), 2) if salary_match else None
+            if salary_match:
+                salary = round(float(salary_match.group(1)), 2)
+            elif len(row) > 9 and row[9] is not None:
+                try:
+                    salary = round(float(row[9]), 2)
+                except (ValueError, TypeError):
+                    pass
             if clean and not re.match(r"^[\d.$]+$", clean):
-                players.append({"name": clean, "salary": salary})
+                players.append({"name": clean, "salary": salary, "is_dleague": True})
 
     return players
 
@@ -126,11 +133,12 @@ def main():
     wb.close()
 
     conn = sqlite3.connect(db_path)
-    conn.execute("CREATE TABLE IF NOT EXISTS fantasy_rosters ("
+    conn.execute("DROP TABLE IF EXISTS fantasy_rosters")
+    conn.execute("CREATE TABLE fantasy_rosters ("
                  "player_id INTEGER PRIMARY KEY, "
                  "fantasy_team TEXT NOT NULL, "
-                 "salary REAL)")
-    conn.execute("DELETE FROM fantasy_rosters")
+                 "salary REAL, "
+                 "is_dleague INTEGER NOT NULL DEFAULT 0)")
 
     nba_players = {row[1]: row[0] for row in conn.execute("SELECT player_id, player_name FROM players")}
     print(f"\nMatching {len(all_fantasy)} fantasy players to {len(nba_players)} NBA players...")
@@ -141,8 +149,8 @@ def main():
         player_id = fuzzy_match(fp["name"], nba_players)
         if player_id:
             conn.execute(
-                "INSERT OR REPLACE INTO fantasy_rosters (player_id, fantasy_team, salary) VALUES (?, ?, ?)",
-                (player_id, fp["team"], fp["salary"]),
+                "INSERT OR REPLACE INTO fantasy_rosters (player_id, fantasy_team, salary, is_dleague) VALUES (?, ?, ?, ?)",
+                (player_id, fp["team"], fp["salary"], 1 if fp["is_dleague"] else 0),
             )
             matched += 1
         else:

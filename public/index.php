@@ -98,6 +98,7 @@ require_once __DIR__ . '/rankings.php';
         .punt-panel.open { display: flex; }
         .punt-panel label { font-weight: 400; font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
         .fantasy-team { font-size: 0.75rem; color: var(--text-muted); }
+        .dleague-badge { font-size: 0.65rem; font-weight: 700; color: var(--text-faint); border: 1px solid var(--border); border-radius: 3px; padding: 0 0.25rem; margin-left: 0.35rem; vertical-align: middle; }
         .player-count { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
         table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; box-shadow: 0 1px 3px var(--shadow); font-size: 0.85rem; }
         th, td { padding: 0.4rem 0.6rem; text-align: center; white-space: nowrap; }
@@ -154,6 +155,20 @@ require_once __DIR__ . '/rankings.php';
             <input type="checkbox" id="punt_toggle" <?= !empty($punt) ? 'checked' : '' ?>>
             <label for="punt_toggle">Punt</label>
         </div>
+        <?php if ($has_fantasy): ?>
+        <div class="punt-toggle">
+            <input type="checkbox" id="show_ffsnba" name="show_ffsnba" value="1" <?= $show_ffsnba ? 'checked' : '' ?>>
+            <label for="show_ffsnba">FFSNBA</label>
+            <select name="ffsnba_team" id="ffsnba_team" style="<?= $show_ffsnba ? '' : 'display:none;' ?> padding:0.4rem; font-size:0.9rem; border:1px solid var(--input-border); border-radius:4px; background:var(--surface); color:var(--text);">
+                <option value="">All Players</option>
+                <option value="__free_agents__" <?= $ffsnba_team === '__free_agents__' ? 'selected' : '' ?>>Free Agents</option>
+                <option value="__dleague__" <?= $ffsnba_team === '__dleague__' ? 'selected' : '' ?>>D-League</option>
+                <?php foreach ($fantasy_teams as $team): ?>
+                <option value="<?= htmlspecialchars($team) ?>" <?= $ffsnba_team === $team ? 'selected' : '' ?>><?= htmlspecialchars($team) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <?php endif; ?>
         <div class="calc-mode-group">
             <label for="calc_mode">Method</label>
             <select name="calc_mode" id="calc_mode">
@@ -219,7 +234,7 @@ require_once __DIR__ . '/rankings.php';
 
     <?php if (!empty($players)): ?>
     <div style="overflow: auto; max-height: 80vh;">
-    <table>
+    <table id="rankings">
         <?php
         // Column definitions for avg and z-score sections
         $avg_cols = [
@@ -236,7 +251,7 @@ require_once __DIR__ . '/rankings.php';
             <tr>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">#</th>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="str">Player</th>
-                <?php if ($has_fantasy): ?>
+                <?php if ($has_fantasy && $show_ffsnba): ?>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="str">Team</th>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">Salary</th>
                 <?php endif; ?>
@@ -272,9 +287,9 @@ require_once __DIR__ . '/rankings.php';
                 <td class="player-name">
                     <a href="/player.php?id=<?= $p['player_id'] ?><?= $date_mode === 'selected_dates' ? '&from=' . urlencode($date_from) . '&to=' . urlencode($date_to) : '' ?>">
                         <?= htmlspecialchars($p['player_name']) ?>
-                    </a>
+                    </a><?php if ($has_fantasy && $p['is_dleague']): ?><span class="dleague-badge" title="D-League">D</span><?php endif; ?>
                 </td>
-                <?php if ($has_fantasy): ?>
+                <?php if ($has_fantasy && $show_ffsnba): ?>
                 <td class="fantasy-team"><?= $p['fantasy_team'] ? htmlspecialchars($p['fantasy_team']) : '—' ?></td>
                 <td class="salary-col"><?= $p['fantasy_salary'] ? '$' . number_format($p['fantasy_salary'], 2) . 'M' : '—' ?></td>
                 <?php endif; ?>
@@ -346,6 +361,20 @@ document.addEventListener('DOMContentLoaded', function() {
     modeFull.addEventListener('change',  function() { setMode(this.checked ? 'full_season' : 'selected_dates'); });
     modeDates.addEventListener('change', function() { setMode(this.checked ? 'selected_dates' : 'full_season'); });
 
+    // FFSNBA toggle — auto-submit and show/hide team select
+    var ffsnbaToggle = document.getElementById('show_ffsnba');
+    var ffsnbaTeam = document.getElementById('ffsnba_team');
+    if (ffsnbaToggle && ffsnbaTeam) {
+        ffsnbaToggle.addEventListener('change', function() {
+            ffsnbaTeam.style.display = this.checked ? '' : 'none';
+            if (!this.checked) ffsnbaTeam.value = '';
+            this.form.submit();
+        });
+        ffsnbaTeam.addEventListener('change', function() {
+            this.form.submit();
+        });
+    }
+
     // Punt panel toggle
     var puntToggle = document.getElementById('punt_toggle');
     var puntPanel = document.querySelector('.punt-panel');
@@ -358,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const table = document.querySelector('table');
+    const table = document.getElementById('rankings');
     if (!table) return;
     const tbody = table.querySelector('tbody');
     const headers = table.querySelectorAll('th.sortable');
@@ -386,8 +415,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 let bVal = b.cells[col].textContent.trim();
 
                 if (type === 'num') {
-                    aVal = parseFloat(aVal.replace('%', '').replace('+', '')) || 0;
-                    bVal = parseFloat(bVal.replace('%', '').replace('+', '')) || 0;
+                    aVal = parseFloat(aVal.replace(/[%+$M,]/g, '')) || 0;
+                    bVal = parseFloat(bVal.replace(/[%+$M,]/g, '')) || 0;
                     return ascending ? aVal - bVal : bVal - aVal;
                 } else {
                     return ascending

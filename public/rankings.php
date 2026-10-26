@@ -9,6 +9,8 @@ $date_from = $_GET['from'] ?? date('Y-m-d', strtotime('-30 days'));
 $date_to   = $_GET['to']   ?? date('Y-m-d');
 $min_games = (int)($_GET['min_games'] ?? 10);
 $use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : false;
+$show_ffsnba = isset($_GET['apply']) ? isset($_GET['show_ffsnba']) : false;
+$ffsnba_team = $_GET['ffsnba_team'] ?? '';
 $calc_mode = $_GET['calc_mode'] ?? 'strict';
 
 // Punt categories
@@ -170,19 +172,38 @@ unset($p);
 // Load fantasy roster data (team + salary)
 $fantasy = [];
 try {
-    $rows = $db->query("SELECT player_id, fantasy_team, salary FROM fantasy_rosters")->fetchAll();
+    $rows = $db->query("SELECT player_id, fantasy_team, salary, is_dleague FROM fantasy_rosters")->fetchAll();
     foreach ($rows as $r) {
-        $fantasy[$r['player_id']] = ['team' => $r['fantasy_team'], 'salary' => $r['salary']];
+        $fantasy[$r['player_id']] = ['team' => $r['fantasy_team'], 'salary' => $r['salary'], 'is_dleague' => (bool)$r['is_dleague']];
     }
 } catch (PDOException $e) {
     // Table may not exist yet
 }
 $has_fantasy = !empty($fantasy);
+$fantasy_teams = [];
 if ($has_fantasy) {
+    $team_set = [];
+    foreach ($fantasy as $f) {
+        $team_set[$f['team']] = true;
+    }
+    $fantasy_teams = array_keys($team_set);
+    sort($fantasy_teams);
+
     foreach ($players as &$p) {
         $f = $fantasy[$p['player_id']] ?? null;
         $p['fantasy_team'] = $f ? $f['team'] : null;
         $p['fantasy_salary'] = $f ? $f['salary'] : null;
+        $p['is_dleague'] = $f ? $f['is_dleague'] : false;
     }
     unset($p);
+
+    if ($show_ffsnba && $ffsnba_team !== '') {
+        if ($ffsnba_team === '__free_agents__') {
+            $players = array_values(array_filter($players, fn($p) => $p['fantasy_team'] === null));
+        } elseif ($ffsnba_team === '__dleague__') {
+            $players = array_values(array_filter($players, fn($p) => $p['is_dleague']));
+        } else {
+            $players = array_values(array_filter($players, fn($p) => $p['fantasy_team'] === $ffsnba_team));
+        }
+    }
 }
