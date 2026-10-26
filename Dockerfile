@@ -1,7 +1,7 @@
 FROM php:8.4-cli
 
 # AWS Lambda Web Adapter — proxies Lambda events to PHP built-in server
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 \
+COPY --from=100055760442.dkr.ecr.us-east-2.amazonaws.com/aws-lambda-adapter:1.1.0 \
   /lambda-adapter /opt/extensions/lambda-adapter
 
 # AWS CLI for S3 database download and SSM parameter fetch
