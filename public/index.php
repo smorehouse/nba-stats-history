@@ -127,6 +127,14 @@ require_once __DIR__ . '/rankings.php';
         th.sort-asc::after { content: ' \2191'; opacity: 1; }
         th.sort-desc::after { content: ' \2193'; opacity: 1; }
         .salary-col { font-weight: 600; color: var(--accent); }
+        #log-btn { background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 0.8rem; padding: 0.2rem 0.5rem; line-height: 1; color: var(--text); position: relative; }
+        #log-btn:hover { background: var(--hover); }
+        .log-popup { display: none; position: absolute; top: 100%; right: 0; margin-top: 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 12px var(--shadow); padding: 0.75rem; z-index: 100; min-width: 340px; }
+        .log-popup.open { display: block; }
+        .log-popup h3 { font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem; }
+        .log-popup table { font-size: 0.8rem; width: 100%; box-shadow: none; border-radius: 0; }
+        .log-popup th, .log-popup td { padding: 0.25rem 0.5rem; }
+        .log-popup .empty { color: var(--text-faint); font-size: 0.8rem; font-style: italic; }
     </style>
 </head>
 <body>
@@ -168,7 +176,42 @@ require_once __DIR__ . '/rankings.php';
             </select>
         </div>
         <button type="submit">Update</button>
-        <button type="button" id="theme-toggle" title="Toggle dark mode" style="margin-left: auto;"></button>
+        <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+            <div style="position: relative; display: inline-block;">
+                <button type="button" id="log-btn" title="Loader run history">Log</button>
+                <div class="log-popup" id="log-popup">
+                    <h3>Loader History</h3>
+                    <?php
+                    try {
+                        $loader_runs = $db->query("SELECT run_date, duration_seconds, total_players, total_games FROM loader_runs ORDER BY run_date DESC LIMIT 5")->fetchAll();
+                    } catch (PDOException $e) {
+                        $loader_runs = [];
+                    }
+                    if (!empty($loader_runs)): ?>
+                    <table>
+                        <thead><tr><th>Date</th><th>Duration</th><th>Players</th><th>Games</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($loader_runs as $run):
+                            $mins = intdiv($run['duration_seconds'], 60);
+                            $secs = $run['duration_seconds'] % 60;
+                            $date = date('M j g:ia', strtotime($run['run_date']));
+                        ?>
+                            <tr>
+                                <td><?= $date ?></td>
+                                <td><?= $mins ?>m <?= $secs ?>s</td>
+                                <td><?= number_format($run['total_players']) ?></td>
+                                <td><?= number_format($run['total_games']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <?php else: ?>
+                        <p class="empty">No run history yet</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <button type="button" id="theme-toggle" title="Toggle dark mode"></button>
+        </div>
         <div class="punt-panel <?= !empty($punt) ? 'open' : '' ?>">
             <?php
             $punt_labels = [
@@ -303,6 +346,19 @@ require_once __DIR__ . '/rankings.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Log popup toggle
+    var logBtn = document.getElementById('log-btn');
+    var logPopup = document.getElementById('log-popup');
+    logBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        logPopup.classList.toggle('open');
+    });
+    document.addEventListener('click', function(e) {
+        if (!logPopup.contains(e.target) && e.target !== logBtn) {
+            logPopup.classList.remove('open');
+        }
+    });
+
     // Theme toggle
     var html = document.documentElement;
     var toggle = document.getElementById('theme-toggle');

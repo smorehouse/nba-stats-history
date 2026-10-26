@@ -43,6 +43,40 @@ docker run --name nba-loader \
 docker cp nba-loader:/tmp/nba.sqlite "${DB_DIR}/nba.sqlite"
 docker rm nba-loader
 
+# Build loader_runs table from log history + current run
+echo "==> Saving run history..."
+sqlite3 "${DB_DIR}/nba.sqlite" "CREATE TABLE IF NOT EXISTS loader_runs (
+    run_date TEXT PRIMARY KEY,
+    duration_seconds INTEGER,
+    total_players INTEGER,
+    total_games INTEGER
+);"
+
+LOGFILE="${SCRIPT_DIR}/loader.log"
+if [ -f "$LOGFILE" ]; then
+    run_date="" players="" games=""
+    while IFS= read -r line; do
+        if [[ "$line" == *"NBA Stats Loader —"* ]]; then
+            run_date=$(echo "$line" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}')
+        elif [[ "$line" == Done.* ]]; then
+            players=$(echo "$line" | grep -oE '^Done\. [0-9]+' | grep -oE '[0-9]+')
+            games=$(echo "$line" | grep -oE '[0-9]+ games' | grep -oE '[0-9]+')
+        elif [[ "$line" == "==> Finished at"* ]]; then
+            if [[ -n "$run_date" && -n "$players" && -n "$games" ]]; then
+                mins=$(echo "$line" | grep -oE '[0-9]+m' | grep -oE '[0-9]+')
+                secs=$(echo "$line" | grep -oE '[0-9]+s' | grep -oE '[0-9]+')
+                dur=$(( mins * 60 + secs ))
+                sqlite3 "${DB_DIR}/nba.sqlite" "INSERT OR IGNORE INTO loader_runs VALUES ('${run_date}', ${dur}, ${players}, ${games});"
+            fi
+            run_date="" players="" games=""
+        fi
+    done < "$LOGFILE"
+fi
+
+CUR_PLAYERS=$(sqlite3 "${DB_DIR}/nba.sqlite" "SELECT COUNT(*) FROM players")
+CUR_GAMES=$(sqlite3 "${DB_DIR}/nba.sqlite" "SELECT COUNT(*) FROM game_logs")
+sqlite3 "${DB_DIR}/nba.sqlite" "INSERT OR REPLACE INTO loader_runs VALUES ('$(date '+%Y-%m-%d %H:%M:%S')', ${SECONDS}, ${CUR_PLAYERS}, ${CUR_GAMES});"
+
 echo "==> Uploading to S3..."
 aws s3 cp "${DB_DIR}/nba.sqlite" "s3://${S3_BUCKET}/${S3_KEY}" --region "$AWS_REGION"
 
