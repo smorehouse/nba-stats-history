@@ -3,7 +3,7 @@
 Download the fantasy league Google Sheet and sync team/salary data into nba.sqlite.
 
 Usage:
-    uv run --with openpyxl python3 loader/sync_fantasy.py <GOOGLE_SHEET_ID> <DB_PATH>
+    python3 loader/sync_fantasy.py <GOOGLE_SHEET_ID> <DB_PATH>
 """
 
 import re

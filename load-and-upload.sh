@@ -33,12 +33,15 @@ LATEST_TAG=$(aws ecr describe-images \
 IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${LATEST_TAG}"
 docker pull "$IMAGE"
 
-echo "==> Running loader..."
+source "${SCRIPT_DIR}/.env"
+
+echo "==> Running loader and fantasy roster sync..."
 docker rm -f nba-loader 2>/dev/null || true
 docker run --name nba-loader \
-  --entrypoint python \
+  --env GOOGLE_SHEET_ID="$GOOGLE_SHEET_ID" \
+  --entrypoint sh \
   "$IMAGE" \
-  load_gamelog.py
+  -c 'python load_gamelog.py && { python sync_fantasy.py "$GOOGLE_SHEET_ID" /tmp/nba.sqlite || echo "WARNING: fantasy sync failed"; }'
 
 docker cp nba-loader:/tmp/nba.sqlite "${DB_DIR}/nba.sqlite"
 docker rm nba-loader
@@ -76,11 +79,6 @@ fi
 CUR_PLAYERS=$(sqlite3 "${DB_DIR}/nba.sqlite" "SELECT COUNT(*) FROM players")
 CUR_GAMES=$(sqlite3 "${DB_DIR}/nba.sqlite" "SELECT COUNT(*) FROM game_logs")
 sqlite3 "${DB_DIR}/nba.sqlite" "INSERT OR REPLACE INTO loader_runs VALUES ('$(date '+%Y-%m-%d %H:%M:%S')', ${SECONDS}, ${CUR_PLAYERS}, ${CUR_GAMES});"
-
-# Sync fantasy league data from Google Sheet
-echo "==> Syncing fantasy rosters..."
-source "${SCRIPT_DIR}/.env"
-uv run --with openpyxl python3 "${SCRIPT_DIR}/loader/sync_fantasy.py" "$GOOGLE_SHEET_ID" "${DB_DIR}/nba.sqlite"
 
 echo "==> Uploading to S3..."
 aws s3 cp "${DB_DIR}/nba.sqlite" "s3://${S3_BUCKET}/${S3_KEY}" --region "$AWS_REGION"
