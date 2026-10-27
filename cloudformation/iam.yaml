@@ -50,7 +50,9 @@ Resources:
                   - ecr:InitiateLayerUpload
                   - ecr:PutImage
                   - ecr:UploadLayerPart
-                Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/nba-stats-*
+                Resource:
+                  - !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/nba-stats-*
+                  - !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/aws-lambda-adapter
 
               - Sid: CloudFormation
                 Effect: Allow
