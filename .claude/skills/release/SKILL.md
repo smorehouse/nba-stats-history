@@ -2,7 +2,7 @@
 name: release
 description: Analyze changes since last version tag, propose a semver bump, and create a new release tag after user approval.
 disable-model-invocation: true
-allowed-tools: Bash(git *), Read, Grep, Glob
+allowed-tools: Bash(git *), Bash(gh run list *), Bash(gh run rerun *), Read, Grep, Glob
 argument-hint: "optional: force version, e.g. v1.2.0"
 ---
 
@@ -47,4 +47,14 @@ Analyze changes since the last version tag and propose a new semver release.
    git push origin <new-version>
    ```
 
-7. **Confirm** the tag was created and pushed. Remind the user that GitHub Actions will deploy automatically from this tag.
+7. **Monitor GitHub Actions deployment:**
+   - Run the following in the background to wait for workflows to finish:
+     ```
+     while gh run list --repo smorehouse/nba-stats-history --limit 4 | grep -q 'in_progress'; do sleep 15; done && gh run list --repo smorehouse/nba-stats-history --limit 4
+     ```
+   - Tell the user the tag is pushed and you're monitoring the deploy
+   - When the background command completes, check the results:
+     - If both Deploy Web and Deploy Loader show `success`, confirm the release is fully deployed
+     - If either shows `failure`, report it immediately and offer to rerun with `gh run rerun <run-id>`
+
+8. **Confirm** the tag was created, pushed, and deployed successfully.
