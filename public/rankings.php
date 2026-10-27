@@ -11,6 +11,18 @@ $min_games = (int)($_GET['min_games'] ?? 10);
 $use_min_games = isset($_GET['apply']) ? isset($_GET['use_min_games']) : false;
 $show_ffsnba = isset($_GET['apply']) ? isset($_GET['show_ffsnba']) : false;
 $ffsnba_team = $_GET['ffsnba_team'] ?? '';
+
+// Position filters: G/F/C also match combo positions; G/F and F/C match exactly
+$position_matches = [
+    'G' => ['G', 'G/F'],
+    'F' => ['F', 'G/F', 'F/C'],
+    'C' => ['C', 'F/C'],
+    'G/F' => ['G/F'],
+    'F/C' => ['F/C'],
+];
+$ffsnba_pos = $_GET['pos'] ?? [];
+if (is_string($ffsnba_pos)) $ffsnba_pos = explode(',', $ffsnba_pos);
+$ffsnba_pos = array_values(array_intersect(array_keys($position_matches), (array)$ffsnba_pos));
 $calc_mode = $_GET['calc_mode'] ?? 'strict';
 
 // Punt categories
@@ -206,4 +218,22 @@ if ($has_fantasy) {
             $players = array_values(array_filter($players, fn($p) => $p['fantasy_team'] === $ffsnba_team));
         }
     }
+}
+
+// Load Fantrax positions
+$positions = [];
+try {
+    $positions = $db->query("SELECT player_id, position FROM player_positions")->fetchAll(PDO::FETCH_KEY_PAIR);
+} catch (PDOException $e) {
+    // Table may not exist yet
+}
+$has_positions = !empty($positions);
+foreach ($players as &$p) {
+    $p['position'] = $positions[$p['player_id']] ?? null;
+}
+unset($p);
+
+if ($has_positions && $show_ffsnba && !empty($ffsnba_pos)) {
+    $allowed = array_merge(...array_map(fn($f) => $position_matches[$f], $ffsnba_pos));
+    $players = array_values(array_filter($players, fn($p) => in_array($p['position'], $allowed, true)));
 }

@@ -98,6 +98,9 @@ require_once __DIR__ . '/rankings.php';
         .punt-panel.open { display: flex; }
         .punt-panel label { font-weight: 400; font-size: 0.85rem; display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
         .fantasy-team { font-size: 0.75rem; color: var(--text-muted); }
+        .pos-filters { display: flex; gap: 0.6rem; }
+        .pos-filters label { font-size: 0.85rem; display: flex; align-items: center; gap: 0.2rem; cursor: pointer; }
+        .pos-col { font-size: 0.75rem; color: var(--text-muted); }
         .dleague-badge { font-size: 0.65rem; font-weight: 700; color: var(--text-faint); border: 1px solid var(--border); border-radius: 3px; padding: 0 0.25rem; margin-left: 0.35rem; vertical-align: middle; }
         .player-count { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
         table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; box-shadow: 0 1px 3px var(--shadow); font-size: 0.85rem; }
@@ -167,6 +170,13 @@ require_once __DIR__ . '/rankings.php';
                 <option value="<?= htmlspecialchars($team) ?>" <?= $ffsnba_team === $team ? 'selected' : '' ?>><?= htmlspecialchars($team) ?></option>
                 <?php endforeach; ?>
             </select>
+            <?php if ($has_positions): ?>
+            <div class="pos-filters" id="pos_filters" style="<?= $show_ffsnba ? '' : 'display:none;' ?>">
+                <?php foreach (array_keys($position_matches) as $pos): $pos_id = 'pos_' . str_replace('/', '', $pos); ?>
+                <label for="<?= $pos_id ?>"><input type="checkbox" id="<?= $pos_id ?>" name="pos[]" value="<?= $pos ?>" <?= in_array($pos, $ffsnba_pos) ? 'checked' : '' ?>><?= $pos ?></label>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
         <div class="calc-mode-group">
@@ -254,6 +264,9 @@ require_once __DIR__ . '/rankings.php';
                 <?php if ($has_fantasy && $show_ffsnba): ?>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="str">Team</th>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">Salary</th>
+                <?php if ($has_positions): ?>
+                <th class="sortable" data-col="<?= $col++ ?>" data-type="str">Pos</th>
+                <?php endif; ?>
                 <?php endif; ?>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">GP</th>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">MIN</th>
@@ -292,6 +305,9 @@ require_once __DIR__ . '/rankings.php';
                 <?php if ($has_fantasy && $show_ffsnba): ?>
                 <td class="fantasy-team"><?= $p['fantasy_team'] ? htmlspecialchars($p['fantasy_team']) : '—' ?></td>
                 <td class="salary-col"><?= $p['fantasy_salary'] ? '$' . number_format($p['fantasy_salary'], 2) . 'M' : '—' ?></td>
+                <?php if ($has_positions): ?>
+                <td class="pos-col"><?= $p['position'] ? htmlspecialchars($p['position']) : '—' ?></td>
+                <?php endif; ?>
                 <?php endif; ?>
                 <td><?= $p['gp'] ?></td>
                 <td><?= $p['min'] ?></td>
@@ -364,14 +380,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // FFSNBA toggle — auto-submit and show/hide team select
     var ffsnbaToggle = document.getElementById('show_ffsnba');
     var ffsnbaTeam = document.getElementById('ffsnba_team');
+    var posFilters = document.getElementById('pos_filters');
+    var posBoxes = posFilters ? posFilters.querySelectorAll('input[type="checkbox"]') : [];
     if (ffsnbaToggle && ffsnbaTeam) {
         ffsnbaToggle.addEventListener('change', function() {
             ffsnbaTeam.style.display = this.checked ? '' : 'none';
-            if (!this.checked) ffsnbaTeam.value = '';
+            if (posFilters) posFilters.style.display = this.checked ? '' : 'none';
+            if (!this.checked) {
+                ffsnbaTeam.value = '';
+                posBoxes.forEach(function(box) { box.checked = false; });
+            }
             this.form.submit();
         });
         ffsnbaTeam.addEventListener('change', function() {
             this.form.submit();
+        });
+        posBoxes.forEach(function(box) {
+            box.addEventListener('change', function() { this.form.submit(); });
         });
     }
 

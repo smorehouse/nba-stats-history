@@ -56,6 +56,10 @@ foreach ($players as $p) {
         $row['fantasy_salary'] = $p['fantasy_salary'];
     }
 
+    if ($has_positions) {
+        $row['position'] = $p['position'];
+    }
+
     $result[] = $row;
 }
 

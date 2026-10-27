@@ -1,7 +1,7 @@
 FROM public.ecr.aws/lambda/python:3.12
 
-COPY loader/load_gamelog.py loader/sync_fantasy.py ${LAMBDA_TASK_ROOT}/
+COPY loader/load_gamelog.py loader/sync_fantasy.py loader/sync_positions.py ${LAMBDA_TASK_ROOT}/
 
-RUN pip install --no-cache-dir nba_api boto3 openpyxl
+RUN pip install --no-cache-dir nba_api boto3 openpyxl requests
 
 CMD ["load_gamelog.handler"]

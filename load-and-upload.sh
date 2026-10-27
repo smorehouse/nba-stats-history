@@ -35,13 +35,17 @@ docker pull "$IMAGE"
 
 source "${SCRIPT_DIR}/.env"
 
-echo "==> Running loader and fantasy roster sync..."
+echo "==> Running loader, fantasy roster sync and position sync..."
 docker rm -f nba-loader 2>/dev/null || true
 docker run --name nba-loader \
   --env GOOGLE_SHEET_ID="$GOOGLE_SHEET_ID" \
+  --env FANTRAX_LEAGUE_ID="$FANTRAX_LEAGUE_ID" \
   --entrypoint sh \
   "$IMAGE" \
-  -c 'python load_gamelog.py && { python sync_fantasy.py "$GOOGLE_SHEET_ID" /tmp/nba.sqlite || echo "WARNING: fantasy sync failed"; }'
+  -c 'python load_gamelog.py && {
+        python sync_fantasy.py "$GOOGLE_SHEET_ID" /tmp/nba.sqlite || echo "WARNING: fantasy sync failed"
+        python sync_positions.py "$FANTRAX_LEAGUE_ID" /tmp/nba.sqlite || echo "WARNING: position sync failed"
+      }'
 
 docker cp nba-loader:/tmp/nba.sqlite "${DB_DIR}/nba.sqlite"
 docker rm nba-loader
