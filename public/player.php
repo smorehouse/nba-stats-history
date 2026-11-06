@@ -152,6 +152,8 @@ $back_params = $full_season ? '' : http_build_query(['from' => $date_from, 'to' 
         .win { color: var(--z-pos); font-weight: 600; }
         .loss { color: var(--z-neg); font-weight: 600; }
         .empty { color: var(--text-faint); font-style: italic; margin-top: 1rem; }
+        .site-footer { margin: 24px 0 8px; text-align: center; font-size: 13px; color: var(--text-faint); }
+        .site-footer a { color: var(--text-muted); }
     </style>
 </head>
 <body>
@@ -208,6 +210,10 @@ $back_params = $full_season ? '' : http_build_query(['from' => $date_from, 'to' 
     <?php else: ?>
         <p class="empty">No games found in this date range.</p>
     <?php endif; ?>
+<footer class="site-footer">
+    <a href="https://github.com/smorehouse/nba-stats-history">Source on GitHub</a>
+</footer>
+
 <script>
     var html = document.documentElement;
     var toggle = document.getElementById('theme-toggle');

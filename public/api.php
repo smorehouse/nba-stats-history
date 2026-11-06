@@ -3,6 +3,9 @@ require_once __DIR__ . '/rankings.php';
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
+header('Link: <https://github.com/smorehouse/nba-stats-history>; rel="source"');
+header('X-Source-Code: https://github.com/smorehouse/nba-stats-history');
+header('Access-Control-Expose-Headers: Link, X-Source-Code');
 
 $cat_labels = [
     'fg_impact' => 'fg_pct', 'ft_impact' => 'ft_pct',

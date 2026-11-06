@@ -131,6 +131,8 @@ require_once __DIR__ . '/rankings.php';
         .log-popup table { font-size: 0.8rem; width: 100%; box-shadow: none; border-radius: 0; }
         .log-popup th, .log-popup td { padding: 0.25rem 0.5rem; }
         .log-popup .empty { color: var(--text-faint); font-size: 0.8rem; font-style: italic; }
+        .site-footer { margin: 24px 0 8px; text-align: center; font-size: 13px; color: var(--text-faint); }
+        .site-footer a { color: var(--text-muted); }
     </style>
 </head>
 <body>
@@ -270,6 +272,7 @@ require_once __DIR__ . '/rankings.php';
                 <?php endif; ?>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">GP</th>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">MIN</th>
+                <th class="sortable section-start" data-col="<?= $col++ ?>" data-type="num">Z-Total</th>
                 <?php $first_avg = true; foreach ($avg_cols as $key => $label):
                     if (in_array($key, $punt)) continue; ?>
                     <th class="sortable<?= $first_avg ? ' section-start' : '' ?>" data-col="<?= $col++ ?>" data-type="num"><?= $label ?></th>
@@ -278,7 +281,6 @@ require_once __DIR__ . '/rankings.php';
                     if (in_array($key, $punt)) continue; ?>
                     <th class="sortable<?= $first_z ? ' section-start' : '' ?>" data-col="<?= $col++ ?>" data-type="num"><?= $label ?></th>
                 <?php $first_z = false; endforeach; ?>
-                <th class="sortable section-start" data-col="<?= $col++ ?>" data-type="num">Z-Total</th>
             </tr>
         </thead>
         <tbody>
@@ -311,6 +313,9 @@ require_once __DIR__ . '/rankings.php';
                 <?php endif; ?>
                 <td><?= $p['gp'] ?></td>
                 <td><?= $p['min'] ?></td>
+                <td class="section-start z-total <?= $p['z_total'] >= 0 ? 'z-pos' : 'z-neg' ?>">
+                    <?= $p['z_total'] >= 0 ? '+' : '' ?><?= number_format($p['z_total'], 2) ?>
+                </td>
                 <?php $first_avg = true; foreach ($avg_display as $key => $getter):
                     if (in_array($key, $punt)) continue; ?>
                     <td<?= $first_avg ? ' class="section-start"' : '' ?>><?= $getter($p) ?></td>
@@ -320,9 +325,6 @@ require_once __DIR__ . '/rankings.php';
                         <?= $p['z_'.$cat] >= 0 ? '+' : '' ?><?= number_format($p['z_'.$cat], 2) ?>
                     </td>
                 <?php $first_z = false; endforeach; ?>
-                <td class="section-start z-total <?= $p['z_total'] >= 0 ? 'z-pos' : 'z-neg' ?>">
-                    <?= $p['z_total'] >= 0 ? '+' : '' ?><?= number_format($p['z_total'], 2) ?>
-                </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
@@ -331,6 +333,10 @@ require_once __DIR__ . '/rankings.php';
     <?php else: ?>
         <p style="color: #888; font-style: italic;">No data for this date range.</p>
     <?php endif; ?>
+
+<footer class="site-footer">
+    <a href="https://github.com/smorehouse/nba-stats-history">Source on GitHub</a>
+</footer>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
