@@ -64,8 +64,15 @@ if ($count > 0) {
     $avgs['ft_pct'] = $totals['fta'] > 0 ? round($totals['ftm'] / $totals['fta'] * 100, 1) : 0;
 }
 
-// Build back link preserving date range
-$back_params = $full_season ? '' : http_build_query(['from' => $date_from, 'to' => $date_to]);
+// Back link: restore the rankings filters passed along from the rankings page.
+// Re-encoding via parse_str/http_build_query keeps it a plain query string on "/".
+if (isset($_GET['back']) && is_string($_GET['back'])) {
+    parse_str($_GET['back'], $back_query);
+    // Match the form's encoding: punt[]=x rather than punt[0]=x
+    $back_params = preg_replace('/%5B\d+%5D=/', '%5B%5D=', http_build_query($back_query));
+} else {
+    $back_params = $full_season ? '' : http_build_query(['date_mode' => 'selected_dates', 'from' => $date_from, 'to' => $date_to]);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -157,7 +164,7 @@ $back_params = $full_season ? '' : http_build_query(['from' => $date_from, 'to' 
     </style>
 </head>
 <body>
-    <p><a href="/?<?= $back_params ?>">&larr; Back to rankings</a></p>
+    <p><a href="/<?= $back_params !== '' ? '?' . htmlspecialchars($back_params) : '' ?>">&larr; Back to rankings</a></p>
     <div class="header">
         <h1><?= htmlspecialchars($player['player_name']) ?></h1>
         <button id="theme-toggle" title="Toggle dark mode"></button>

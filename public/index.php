@@ -298,11 +298,13 @@ require_once __DIR__ . '/rankings.php';
                 'stl' => fn($p) => $p['stl'],
                 'blk' => fn($p) => $p['blk'],
             ];
+            // Pass the current filters to the player page so its back link can restore them
+            $back_param = ($_SERVER['QUERY_STRING'] ?? '') !== '' ? '&back=' . urlencode($_SERVER['QUERY_STRING']) : '';
             foreach ($players as $p): ?>
             <tr>
                 <td class="rank-col"><?= $p['rank'] ?></td>
                 <td class="player-name">
-                    <a href="/player.php?id=<?= $p['player_id'] ?><?= $date_mode === 'selected_dates' ? '&from=' . urlencode($date_from) . '&to=' . urlencode($date_to) : '' ?>">
+                    <a href="<?= htmlspecialchars('/player.php?id=' . $p['player_id'] . ($date_mode === 'selected_dates' ? '&from=' . urlencode($date_from) . '&to=' . urlencode($date_to) : '') . $back_param) ?>">
                         <?= htmlspecialchars($p['player_name']) ?>
                     </a><?php if ($has_fantasy && $p['is_dleague']): ?><span class="dleague-badge" title="D-League">D</span><?php endif; ?>
                 </td>
