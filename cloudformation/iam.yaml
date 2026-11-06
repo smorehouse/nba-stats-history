@@ -1,6 +1,14 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: IAM resources for GitHub Actions CI/CD (nba-stats-history)
 
+Parameters:
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for the custom domain
+  HostedZoneId:
+    Type: String
+    Description: Route 53 hosted zone ID for the custom domain
+
 Resources:
   GitHubOIDCProvider:
     Type: AWS::IAM::OIDCProvider
@@ -155,14 +163,14 @@ Resources:
                   - route53:GetChange
                   - route53:GetHostedZone
                 Resource:
-                  - arn:aws:route53:::hostedzone/Z19L3PA4SHN433
+                  - !Sub arn:aws:route53:::hostedzone/${HostedZoneId}
                   - arn:aws:route53:::change/*
 
               - Sid: ACM
                 Effect: Allow
                 Action:
                   - acm:DescribeCertificate
-                Resource: arn:aws:acm:us-east-2:100055760442:certificate/a24943d9-289c-41c9-845a-a721c47cf1ba
+                Resource: !Ref CertificateArn
 
 Outputs:
   RoleArn:

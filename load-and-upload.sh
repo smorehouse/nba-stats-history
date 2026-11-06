@@ -9,7 +9,8 @@ echo "==========================================================================
 echo ""
 
 AWS_REGION="us-east-2"
-ECR_REGISTRY="100055760442.dkr.ecr.${AWS_REGION}.amazonaws.com"
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 ECR_REPOSITORY="nba-stats-loader"
 S3_BUCKET="nba-stats-db-nba-stats"
 S3_KEY="nba.sqlite"

@@ -9,6 +9,9 @@ Parameters:
   CertificateArn:
     Type: String
     Description: ACM certificate ARN for zscore.mascasa.cc
+  HostedZoneId:
+    Type: String
+    Description: Route 53 hosted zone ID for mascasa.cc
 
 Globals:
   Function:
@@ -69,7 +72,7 @@ Resources:
   DnsRecord:
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneId: Z19L3PA4SHN433
+      HostedZoneId: !Ref HostedZoneId
       Name: zscore.mascasa.cc
       Type: A
       AliasTarget:

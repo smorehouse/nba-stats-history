@@ -26,6 +26,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
 
       - name: Login to Amazon ECR
         id: ecr-login
@@ -43,7 +44,7 @@ jobs:
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
           docker pull $ECR_REGISTRY/aws-lambda-adapter:1.1.0
-          docker build --provenance=false --sbom=false -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build --provenance=false --sbom=false --build-arg ECR_REGISTRY=$ECR_REGISTRY -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
@@ -57,10 +58,11 @@ jobs:
             --stack-name ${{ env.STACK_NAME }} \
             --parameter-overrides \
               WebImageUri=${{ steps.build-image.outputs.image_uri }} \
-              CertificateArn=arn:aws:acm:us-east-2:100055760442:certificate/a24943d9-289c-41c9-845a-a721c47cf1ba \
+              CertificateArn=${{ secrets.CERTIFICATE_ARN }} \
+              HostedZoneId=${{ secrets.HOSTED_ZONE_ID }} \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --image-repository 100055760442.dkr.ecr.us-east-2.amazonaws.com/nba-stats-web \
+            --image-repository ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }} \
             --resolve-s3 \
             --region ${{ env.AWS_REGION }}

@@ -45,5 +45,6 @@ Dockerfile.loader — Python loader container image
 - When adding or changing query parameters/filters, also update `~/.openclaw/workspace/TOOLS.md` (NBA Stats API section) so clawbot knows about them
 
 ## AWS Setup
-- Password stored in SSM: `/nba-stats/app-password`
 - GitHub Actions needs `AWS_ROLE_ARN` secret (OIDC role for deployment)
+- GitHub Actions also needs `CERTIFICATE_ARN` (ACM cert for the custom domain) and `HOSTED_ZONE_ID` (Route 53 zone) secrets
+- Do not hardcode the AWS account ID, cert ARN, or zone ID in the repo — it is public, and so are its Actions logs
