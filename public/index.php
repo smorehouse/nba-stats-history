@@ -77,6 +77,8 @@ require_once __DIR__ . '/rankings.php';
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 1.5rem; }
         h1 { margin-bottom: 0.25rem; }
+        .home-link { color: inherit; text-decoration: none; }
+        .home-link:hover { text-decoration: underline; }
         #theme-toggle { background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 1.2rem; padding: 0.2rem 0.5rem; line-height: 1; color: var(--text); }
         #theme-toggle:hover { background: var(--hover); }
         .subtitle { color: var(--text-muted); margin-bottom: 1.5rem; }
@@ -136,7 +138,7 @@ require_once __DIR__ . '/rankings.php';
     </style>
 </head>
 <body>
-    <h1>NBA Z-Score Rankings</h1>
+    <h1><a href="https://zscore.mascasa.cc" class="home-link">NBA Z-Score Rankings</a></h1>
     <p class="subtitle">2026-27 Season &mdash; <?= count($categories) ?>-Category<?= !empty($punt) ? ' (punting ' . count($punt) . ')' : '' ?></p>
 
     <form class="controls" method="get" action="/">
