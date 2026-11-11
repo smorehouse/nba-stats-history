@@ -1,5 +1,2 @@
-User-agent: Claude-User
-Allow: /
-
 User-agent: *
-Disallow: /
+Allow: /
