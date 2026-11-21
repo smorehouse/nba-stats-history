@@ -275,6 +275,9 @@ require_once __DIR__ . '/rankings.php';
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">GP</th>
                 <th class="sortable" data-col="<?= $col++ ?>" data-type="num">MIN</th>
                 <th class="sortable section-start" data-col="<?= $col++ ?>" data-type="num">Z-Total</th>
+                <?php if ($has_game_score): ?>
+                <th class="sortable" data-col="<?= $col++ ?>" data-type="num" title="Average game score">GmSc</th>
+                <?php endif; ?>
                 <?php $first_avg = true; foreach ($avg_cols as $key => $label):
                     if (in_array($key, $punt)) continue; ?>
                     <th class="sortable<?= $first_avg ? ' section-start' : '' ?>" data-col="<?= $col++ ?>" data-type="num"><?= $label ?></th>
@@ -320,6 +323,9 @@ require_once __DIR__ . '/rankings.php';
                 <td class="section-start z-total <?= $p['z_total'] >= 0 ? 'z-pos' : 'z-neg' ?>">
                     <?= $p['z_total'] >= 0 ? '+' : '' ?><?= number_format($p['z_total'], 2) ?>
                 </td>
+                <?php if ($has_game_score): ?>
+                <td><?= number_format($p['game_score'], 1) ?></td>
+                <?php endif; ?>
                 <?php $first_avg = true; foreach ($avg_display as $key => $getter):
                     if (in_array($key, $punt)) continue; ?>
                     <td<?= $first_avg ? ' class="section-start"' : '' ?>><?= $getter($p) ?></td>

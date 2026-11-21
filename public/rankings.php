@@ -31,6 +31,9 @@ $punt = isset($_GET['punt']) && is_array($_GET['punt'])
     ? array_intersect($_GET['punt'], $all_categories)
     : [];
 
+// Game score is added by the loader; hide it until the DB has been rebuilt with it
+$has_game_score = has_column($db, 'game_logs', 'game_score');
+
 // Fetch per-player aggregates in the date range
 $where_date = $date_mode === 'selected_dates'
     ? 'AND g.game_date >= :date_from AND g.game_date <= :date_to'
@@ -51,6 +54,7 @@ $stmt = $db->prepare("
         SUM(g.fga) AS total_fga,
         SUM(g.ftm) AS total_ftm,
         SUM(g.fta) AS total_fta
+        " . ($has_game_score ? ", SUM(g.game_score) AS total_game_score" : "") . "
     FROM game_logs g
     JOIN players p ON p.player_id = g.player_id
     WHERE 1=1 $where_date
@@ -80,6 +84,7 @@ foreach ($raw as $r) {
         'stl'         => round($r['total_stl'] / $gp, 1),
         'blk'         => round($r['total_blk'] / $gp, 1),
         'fg3m'        => round($r['total_fg3m'] / $gp, 1),
+        'game_score'  => $has_game_score ? round($r['total_game_score'] / $gp, 1) : null,
         // Keep totals for impact calc
         'total_fgm'   => (int)$r['total_fgm'],
         'total_fga'   => (int)$r['total_fga'],

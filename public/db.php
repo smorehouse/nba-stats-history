@@ -35,3 +35,11 @@ function get_db(): PDO {
 
     return $pdo;
 }
+
+/** Whether a table has a column (e.g. before the nightly loader adds a new one). */
+function has_column(PDO $db, string $table, string $column): bool {
+    foreach ($db->query("PRAGMA table_info($table)") as $col) {
+        if ($col['name'] === $column) return true;
+    }
+    return false;
+}

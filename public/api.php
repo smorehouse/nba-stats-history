@@ -54,6 +54,10 @@ foreach ($players as $p) {
 
     $row['z_total'] = $p['z_total'];
 
+    if ($has_game_score) {
+        $row['game_score'] = $p['game_score'];
+    }
+
     if ($has_fantasy) {
         $row['fantasy_team'] = $p['fantasy_team'];
         $row['fantasy_salary'] = $p['fantasy_salary'];

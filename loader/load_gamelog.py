@@ -22,6 +22,27 @@ SEASON = "2026-27"
 # nba.com rate-limits aggressively; be polite
 REQUEST_DELAY = 0.6  # seconds between API calls
 
+# Game score (V): an 8-cat fantasy "Game Score" (FG%, FT%, 3PM, PTS, REB, AST, STL, BLK)
+# in which each category is worth the same, so it can score a single game or be averaged.
+# Each weight is 1 / SD of that category's per-game average across the top 360 players
+# (30 teams x 12 roster spots) in 2025-26, normalized so PTS = 1, then divided by 3.
+# FG% and FT% enter as volume-weighted impact stats against the 2025-26 pool averages
+# (lgFG% = .472, lgFT% = .785):
+#     3.71 * (FGM - 0.472 * FGA)  ->  3.71 * FGM - 1.75 * FGA
+#     7.94 * (FTM - 0.785 * FTA)  ->  7.94 * FTM - 6.23 * FTA
+# Scale (2025-26 per-game): #1 ~57, #50 ~31, #100 ~25, #240 ~17, #360 ~10 (replacement level).
+# Hardcoded on purpose so scores stay comparable across nights and over time; change only
+# deliberately (e.g. a once-a-season recompute), since it shifts every stored score.
+GAME_SCORE_WEIGHTS = {
+    "pts": 0.33, "fg3m": 2.29, "reb": 0.92, "ast": 1.10, "stl": 5.62, "blk": 4.90,
+    "fgm": 3.71, "fga": -1.75, "ftm": 7.94, "fta": -6.23,
+}
+
+
+def game_score(row: dict) -> float:
+    """Game score (V) for one game's box score; see GAME_SCORE_WEIGHTS."""
+    return round(sum(w * row[stat] for stat, w in GAME_SCORE_WEIGHTS.items()), 2)
+
 
 def get_db_path() -> Path:
     """Return the database path based on environment."""
@@ -61,6 +82,7 @@ def create_schema(conn: sqlite3.Connection):
             fta INTEGER,
             ft_pct REAL,
             plus_minus INTEGER,
+            game_score REAL,               -- see GAME_SCORE_WEIGHTS
             FOREIGN KEY (player_id) REFERENCES players(player_id),
             UNIQUE(player_id, game_id)
         );
@@ -135,6 +157,8 @@ def fetch_player_gamelog(player_id: int) -> list[dict]:
             "ft_pct": float(g["FT_PCT"]) if g["FT_PCT"] else None,
             "plus_minus": int(g["PLUS_MINUS"]) if g["PLUS_MINUS"] else 0,
         })
+    for r in rows:
+        r["game_score"] = game_score(r)
     return rows
 
 
@@ -143,11 +167,11 @@ def insert_game_logs(conn: sqlite3.Connection, rows: list[dict]):
         INSERT OR IGNORE INTO game_logs
             (player_id, game_id, game_date, matchup, wl, min, pts, reb, ast,
              stl, blk, tov, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct,
-             ftm, fta, ft_pct, plus_minus)
+             ftm, fta, ft_pct, plus_minus, game_score)
         VALUES
             (:player_id, :game_id, :game_date, :matchup, :wl, :min, :pts, :reb, :ast,
              :stl, :blk, :tov, :fgm, :fga, :fg_pct, :fg3m, :fg3a, :fg3_pct,
-             :ftm, :fta, :ft_pct, :plus_minus)
+             :ftm, :fta, :ft_pct, :plus_minus, :game_score)
     """, rows)
 
 

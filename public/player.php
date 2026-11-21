@@ -7,6 +7,7 @@ $player_id = (int)($_GET['id'] ?? 0);
 $date_from = $_GET['from'] ?? null;
 $date_to = $_GET['to'] ?? null;
 $full_season = !$date_from && !$date_to;
+$has_game_score = has_column($db, 'game_logs', 'game_score');
 
 // Get player info
 $stmt = $db->prepare('SELECT player_name FROM players WHERE player_id = :id');
@@ -62,6 +63,9 @@ if ($count > 0) {
     $avgs['fg_pct'] = $totals['fga'] > 0 ? round($totals['fgm'] / $totals['fga'] * 100, 1) : 0;
     $avgs['fg3_pct'] = $totals['fg3a'] > 0 ? round($totals['fg3m'] / $totals['fg3a'] * 100, 1) : 0;
     $avgs['ft_pct'] = $totals['fta'] > 0 ? round($totals['ftm'] / $totals['fta'] * 100, 1) : 0;
+    if ($has_game_score) {
+        $avgs['game_score'] = round(array_sum(array_column($games, 'game_score')) / $count, 1);
+    }
 }
 
 // Back link: restore the rankings filters passed along from the rankings page.
@@ -173,6 +177,9 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
 
     <?php if ($count > 0): ?>
         <div class="averages">
+            <?php if ($has_game_score): ?>
+            <div class="avg-stat"><div class="value"><?= number_format($avgs['game_score'], 1) ?></div><div class="label">GmSc</div></div>
+            <?php endif; ?>
             <div class="avg-stat"><div class="value"><?= $avgs['pts'] ?></div><div class="label">PPG</div></div>
             <div class="avg-stat"><div class="value"><?= $avgs['reb'] ?></div><div class="label">RPG</div></div>
             <div class="avg-stat"><div class="value"><?= $avgs['ast'] ?></div><div class="label">APG</div></div>
@@ -191,6 +198,7 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
                     <th>Date</th><th>Matchup</th><th>W/L</th><th>MIN</th>
                     <th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th>
                     <th>FG</th><th>3PT</th><th>FT</th><th>+/-</th>
+                    <?php if ($has_game_score): ?><th title="Game score">GmSc</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -210,6 +218,7 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
                     <td><?= $g['fg3m'] ?>/<?= $g['fg3a'] ?></td>
                     <td><?= $g['ftm'] ?>/<?= $g['fta'] ?></td>
                     <td><?= $g['plus_minus'] > 0 ? '+' : '' ?><?= $g['plus_minus'] ?></td>
+                    <?php if ($has_game_score): ?><td><strong><?= number_format($g['game_score'], 1) ?></strong></td><?php endif; ?>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
