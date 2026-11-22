@@ -195,10 +195,11 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
         <table>
             <thead>
                 <tr>
-                    <th>Date</th><th>Matchup</th><th>W/L</th><th>MIN</th>
+                    <th>Date</th><th>Matchup</th><th>W/L</th>
+                    <?php if ($has_game_score): ?><th title="Game score">GmSc</th><?php endif; ?>
+                    <th>MIN</th>
                     <th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th>
                     <th>FG</th><th>3PT</th><th>FT</th><th>+/-</th>
-                    <?php if ($has_game_score): ?><th title="Game score">GmSc</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -207,6 +208,7 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
                     <td><?= $g['game_date'] ?></td>
                     <td><?= htmlspecialchars($g['matchup']) ?></td>
                     <td class="<?= $g['wl'] === 'W' ? 'win' : 'loss' ?>"><?= $g['wl'] ?></td>
+                    <?php if ($has_game_score): ?><td><strong><?= number_format($g['game_score'], 1) ?></strong></td><?php endif; ?>
                     <td><?= $g['min'] ?></td>
                     <td><strong><?= $g['pts'] ?></strong></td>
                     <td><?= $g['reb'] ?></td>
@@ -218,7 +220,6 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
                     <td><?= $g['fg3m'] ?>/<?= $g['fg3a'] ?></td>
                     <td><?= $g['ftm'] ?>/<?= $g['fta'] ?></td>
                     <td><?= $g['plus_minus'] > 0 ? '+' : '' ?><?= $g['plus_minus'] ?></td>
-                    <?php if ($has_game_score): ?><td><strong><?= number_format($g['game_score'], 1) ?></strong></td><?php endif; ?>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
