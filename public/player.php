@@ -77,6 +77,30 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
 } else {
     $back_params = $full_season ? '' : http_build_query(['date_mode' => 'selected_dates', 'from' => $date_from, 'to' => $date_to]);
 }
+
+// Game score chart: x-axis spans the selected range, or the season so far for full season
+$chart = null;
+if ($has_game_score && $count > 0) {
+    if ($full_season) {
+        $range = $db->query('SELECT MIN(game_date) AS lo, MAX(game_date) AS hi FROM game_logs')->fetch();
+        [$chart_from, $chart_to] = [$range['lo'], $range['hi']];
+    } else {
+        [$chart_from, $chart_to] = [$date_from, $date_to];
+    }
+    $chart = [
+        'from'  => $chart_from,
+        'to'    => $chart_to,
+        'avg'   => $avgs['game_score'],
+        'repl'  => 10, // replacement level for a 30-team x 12-man league
+        'games' => array_map(fn($g) => [
+            'id'      => $g['game_id'],
+            'date'    => $g['game_date'],
+            'matchup' => $g['matchup'],
+            'wl'      => $g['wl'],
+            'gs'      => round((float)$g['game_score'], 1),
+        ], array_reverse($games)),
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -164,6 +188,26 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
         .loss { color: var(--z-neg); font-weight: 600; }
         .empty { color: var(--text-faint); font-style: italic; margin-top: 1rem; }
         .site-footer { margin: 24px 0 8px; text-align: center; font-size: 13px; color: var(--text-faint); }
+        .chart-card { position: relative; background: var(--surface); border-radius: 8px; padding: 0.75rem 1rem 0.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px var(--shadow); }
+        .chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.25rem; }
+        .chart-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+        .chart-toggle { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0.15rem 0.45rem; }
+        .chart-toggle:hover { background: var(--hover); color: var(--text); }
+        .chart-show { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; padding: 0.3rem 0.7rem; margin-bottom: 1rem; }
+        .chart-show:hover { background: var(--hover); color: var(--text); }
+        #gs-chart svg { display: block; width: 100%; }
+        .gs-grid { stroke: var(--border); stroke-width: 1; }
+        .gs-axis-text { fill: var(--text-muted); font-size: 11px; }
+        .gs-ref { stroke: var(--text-faint); stroke-width: 1; }
+        .gs-ref-avg { stroke: var(--text-muted); }
+        .gs-ref-text { fill: var(--text-muted); font-size: 11px; }
+        .gs-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+        .gs-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; pointer-events: none; }
+        .gs-dot.active { r: 6; }
+        .gs-crosshair { stroke: var(--text-faint); stroke-width: 1; pointer-events: none; }
+        .chart-tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 2px 6px var(--shadow); padding: 0.35rem 0.55rem; font-size: 0.8rem; white-space: nowrap; color: var(--text-muted); }
+        .chart-tip strong { color: var(--text); font-size: 0.95rem; }
+        tr.gs-hl { background: var(--hover); }
         .site-footer a { color: var(--text-muted); }
     </style>
 </head>
@@ -192,6 +236,18 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
             <div class="avg-stat"><div class="value"><?= $avgs['plus_minus'] > 0 ? '+' : '' ?><?= $avgs['plus_minus'] ?></div><div class="label">+/-</div></div>
         </div>
 
+        <?php if ($chart): ?>
+        <div class="chart-card" id="gs-chart-card">
+            <div class="chart-head">
+                <h2 class="chart-title">Game score by game</h2>
+                <button type="button" class="chart-toggle" id="gs-chart-hide" title="Hide chart" aria-label="Hide chart">&times;</button>
+            </div>
+            <div id="gs-chart"></div>
+            <div class="chart-tip" id="gs-tip" hidden></div>
+        </div>
+        <button type="button" class="chart-show" id="gs-chart-show" hidden>Show game score chart</button>
+        <?php endif; ?>
+
         <table>
             <thead>
                 <tr>
@@ -204,7 +260,7 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
             </thead>
             <tbody>
                 <?php foreach ($games as $g): ?>
-                <tr>
+                <tr data-game-id="<?= htmlspecialchars($g['game_id']) ?>">
                     <td><?= $g['game_date'] ?></td>
                     <td><?= htmlspecialchars($g['matchup']) ?></td>
                     <td class="<?= $g['wl'] === 'W' ? 'win' : 'loss' ?>"><?= $g['wl'] ?></td>
@@ -227,6 +283,151 @@ if (isset($_GET['back']) && is_string($_GET['back'])) {
     <?php else: ?>
         <p class="empty">No games found in this date range.</p>
     <?php endif; ?>
+<?php if ($chart): ?>
+<script>
+(function() {
+    var DATA = <?= json_encode($chart, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var NS = 'http://www.w3.org/2000/svg';
+    var DAY = 86400000;
+    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var card = document.getElementById('gs-chart-card');
+    var host = document.getElementById('gs-chart');
+    var tip = document.getElementById('gs-tip');
+    var showBtn = document.getElementById('gs-chart-show');
+    var rows = {};
+    document.querySelectorAll('tr[data-game-id]').forEach(function(tr) { rows[tr.dataset.gameId] = tr; });
+
+    function parseDate(s) { var p = s.split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]); }
+    function fmtDate(t) { var d = new Date(t); return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate(); }
+    function el(name, attrs, parent) {
+        var e = document.createElementNS(NS, name);
+        for (var k in attrs) e.setAttribute(k, attrs[k]);
+        if (parent) parent.appendChild(e);
+        return e;
+    }
+    function niceStep(range, target) {
+        var raw = range / target, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+        var steps = [1, 2, 2.5, 5, 10];
+        for (var i = 0; i < steps.length; i++) if (steps[i] * mag >= raw) return steps[i] * mag;
+        return 10 * mag;
+    }
+
+    var games = DATA.games.map(function(g) { return Object.assign({ t: parseDate(g.date) }, g); });
+    var x0 = parseDate(DATA.from), x1 = parseDate(DATA.to);
+    if (x1 <= x0) { x0 -= DAY; x1 += DAY; }
+    var vals = games.map(function(g) { return g.gs; }).concat([DATA.avg, DATA.repl]);
+    var yStep = niceStep(Math.max(Math.max.apply(null, vals) - Math.min(0, Math.min.apply(null, vals)), 10), 5);
+    var y0 = Math.min(0, Math.floor(Math.min.apply(null, vals) / yStep) * yStep);
+    var y1 = Math.ceil(Math.max.apply(null, vals) / yStep) * yStep;
+    if (y1 === Math.max.apply(null, vals)) y1 += yStep;
+
+    var state = { dots: [], xs: [], crosshair: null, active: -1, m: null, H: 0 };
+
+    function render() {
+        host.textContent = '';
+        var W = host.clientWidth, H = 240;
+        var m = { l: 34, r: 58, t: 10, b: 26 };
+        var pw = W - m.l - m.r, ph = H - m.t - m.b;
+        if (pw <= 50) return;
+        var sx = function(t) { return m.l + (t - x0) / (x1 - x0) * pw; };
+        var sy = function(v) { return m.t + (y1 - v) / (y1 - y0) * ph; };
+        var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'img',
+            'aria-label': 'Game score by game, ' + fmtDate(x0) + ' to ' + fmtDate(x1) }, host);
+
+        // Y gridlines + labels
+        for (var v = y0; v <= y1 + 1e-9; v += yStep) {
+            el('line', { x1: m.l, x2: m.l + pw, y1: sy(v), y2: sy(v), class: 'gs-grid' }, svg);
+            var yl = el('text', { x: m.l - 6, y: sy(v) + 4, 'text-anchor': 'end', class: 'gs-axis-text' }, svg);
+            yl.textContent = Math.round(v * 10) / 10;
+        }
+        // X ticks: about one label per 90px, on whole-day steps
+        var spanDays = (x1 - x0) / DAY;
+        var maxTicks = Math.max(2, Math.floor(pw / 90));
+        var stepDays = [1, 2, 3, 7, 14, 28, 56].find(function(s) { return spanDays / s <= maxTicks; }) || 56;
+        for (var t = x0; t <= x1 + 1; t += stepDays * DAY) {
+            var xl = el('text', { x: sx(t), y: H - 6, 'text-anchor': 'middle', class: 'gs-axis-text' }, svg);
+            xl.textContent = fmtDate(t);
+        }
+        // Reference lines: replacement level and the player's average, labeled at the right
+        [[DATA.repl, 'gs-ref', 'repl ' + DATA.repl], [DATA.avg, 'gs-ref gs-ref-avg', 'avg ' + DATA.avg.toFixed(1)]].forEach(function(r, i) {
+            el('line', { x1: m.l, x2: m.l + pw, y1: sy(r[0]), y2: sy(r[0]), class: r[1] }, svg);
+            var dy = Math.abs(sy(DATA.avg) - sy(DATA.repl)) < 12 ? (i === 0 ? 8 : -4) : 4;
+            var lbl = el('text', { x: m.l + pw + 6, y: sy(r[0]) + dy, class: 'gs-ref-text' }, svg);
+            lbl.textContent = r[2];
+        });
+        // Line + dots
+        el('path', { d: games.map(function(g, i) { return (i ? 'L' : 'M') + sx(g.t) + ',' + sy(g.gs); }).join(''), class: 'gs-line' }, svg);
+        state.crosshair = el('line', { y1: m.t, y2: m.t + ph, class: 'gs-crosshair', visibility: 'hidden' }, svg);
+        state.dots = games.map(function(g) { return el('circle', { cx: sx(g.t), cy: sy(g.gs), r: 4, class: 'gs-dot' }, svg); });
+        state.xs = games.map(function(g) { return sx(g.t); });
+        state.ys = games.map(function(g) { return sy(g.gs); });
+        state.m = m; state.W = W;
+
+        // Hover layer: the whole plot area snaps to the nearest game by date
+        var hit = el('rect', { x: m.l, y: 0, width: pw, height: H, fill: 'transparent' }, svg);
+        hit.addEventListener('pointermove', function(e) {
+            var px = e.clientX - svg.getBoundingClientRect().left, best = 0;
+            for (var i = 1; i < state.xs.length; i++) if (Math.abs(state.xs[i] - px) < Math.abs(state.xs[best] - px)) best = i;
+            activate(best);
+        });
+        hit.addEventListener('pointerleave', function() { activate(-1); });
+        if (state.active >= 0) activate(state.active);
+    }
+
+    function activate(i) {
+        if (state.active >= 0) {
+            if (state.dots[state.active]) state.dots[state.active].classList.remove('active');
+            var prev = rows[games[state.active].id]; if (prev) prev.classList.remove('gs-hl');
+        }
+        state.active = i;
+        if (i < 0) { state.crosshair && state.crosshair.setAttribute('visibility', 'hidden'); tip.hidden = true; return; }
+        var g = games[i];
+        state.dots[i].classList.add('active');
+        state.dots[i].parentNode.appendChild(state.dots[i]); // draw on top
+        state.crosshair.setAttribute('x1', state.xs[i]); state.crosshair.setAttribute('x2', state.xs[i]);
+        state.crosshair.setAttribute('visibility', 'visible');
+        var row = rows[g.id]; if (row) row.classList.add('gs-hl');
+        tip.textContent = '';
+        var strong = document.createElement('strong'); strong.textContent = g.gs.toFixed(1) + ' GmSc';
+        tip.appendChild(strong);
+        tip.appendChild(document.createElement('br'));
+        tip.appendChild(document.createTextNode(fmtDate(g.t) + ' · ' + g.matchup + (g.wl ? ' · ' + g.wl : '')));
+        tip.hidden = false;
+        var left = host.offsetLeft + state.xs[i] + 12, top = host.offsetTop + state.ys[i] - tip.offsetHeight / 2;
+        if (left + tip.offsetWidth > card.clientWidth - 4) left = host.offsetLeft + state.xs[i] - tip.offsetWidth - 12;
+        tip.style.left = left + 'px';
+        tip.style.top = Math.max(4, top) + 'px';
+    }
+
+    // Table rows highlight their dot too
+    games.forEach(function(g, i) {
+        var row = rows[g.id]; if (!row) return;
+        row.addEventListener('mouseenter', function() { if (!card.hidden) activate(i); });
+        row.addEventListener('mouseleave', function() { activate(-1); });
+    });
+
+    // Hide / show, remembered per browser
+    function setHidden(h) {
+        card.hidden = h; showBtn.hidden = !h;
+        try { localStorage.setItem('gsChartHidden', h ? '1' : '0'); } catch (e) {}
+        if (!h) render();
+    }
+    document.getElementById('gs-chart-hide').addEventListener('click', function() { activate(-1); setHidden(true); });
+    showBtn.addEventListener('click', function() { setHidden(false); });
+    var startHidden = false;
+    try { startHidden = localStorage.getItem('gsChartHidden') === '1'; } catch (e) {}
+    card.hidden = startHidden; showBtn.hidden = !startHidden;
+    if (!startHidden) render();
+
+    var pending = false;
+    window.addEventListener('resize', function() {
+        if (pending || card.hidden) return;
+        pending = true;
+        requestAnimationFrame(function() { pending = false; render(); });
+    });
+})();
+</script>
+<?php endif; ?>
 <footer class="site-footer">
     <a href="https://github.com/smorehouse/nba-stats-history">Source on GitHub</a>
 </footer>
